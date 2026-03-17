@@ -66,7 +66,7 @@ PRINT_LABEL_SCHEMA = vol.Schema(
             vol.Coerce(int), vol.Range(min=1, max=255)
         ),
         vol.Optional("cut", default=True): cv.boolean,
-        vol.Optional("font_size"): vol.All(vol.Coerce(int), vol.Range(min=6, max=52)),
+        vol.Optional("font_size"): vol.All(vol.Coerce(int), vol.Range(min=8, max=52)),
         vol.Optional("font_name"): vol.In(list(FONT_MAP.keys())),
         vol.Optional("font_path"): cv.string,
         vol.Optional("rotate", default=False): cv.boolean,

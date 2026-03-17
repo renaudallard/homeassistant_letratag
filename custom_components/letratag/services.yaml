@@ -42,7 +42,7 @@ print_label:
       required: false
       selector:
         number:
-          min: 6
+          min: 8
           max: 52
           mode: slider
     font_path:

@@ -102,7 +102,7 @@ def _auto_font_size(
     if not system_font:
         return best
 
-    for size in range(max_height, 6, -1):
+    for size in range(max_height, 7, -1):
         font = ImageFont.truetype(system_font, size)
         bbox = font.getbbox(text)
         text_height = bbox[3] - bbox[1]
@@ -122,7 +122,7 @@ def _auto_font_size_by_width(
     if not system_font:
         return best
 
-    for size in range(max_width * 2, 6, -1):
+    for size in range(max_width * 2, 7, -1):
         font = ImageFont.truetype(system_font, size)
         bbox = font.getbbox(text)
         text_width = bbox[2] - bbox[0]

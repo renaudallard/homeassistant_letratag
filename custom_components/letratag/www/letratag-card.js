@@ -614,9 +614,10 @@ class LetraTagCard extends HTMLElement {
       this._updateState("fontName", e.target.value);
     });
 
-    // Size slider
+    // Size slider (0 = auto, then 8-52; skip 1-7 as unreadable)
     $("size-slider").addEventListener("input", (e) => {
-      const val = parseInt(e.target.value, 10);
+      let val = parseInt(e.target.value, 10);
+      if (val > 0 && val < 8) val = 8;
       this._state.fontSize = val;
       $("size-value").textContent = val === 0 ? "Auto" : `${val}px`;
       this._updatePreview();
