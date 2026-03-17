@@ -115,26 +115,24 @@ class LetraTagSensorBase(SensorEntity):
             change: Any,
         ) -> None:
             _LOGGER.debug(
-                "BLE callback: addr=%s name=%s mfr_data=%s service_uuids=%s",
+                "BLE adv from %s: name=%s connectable=%s mfr_data=%s service_uuids=%s",
                 service_info.address,
                 service_info.name,
+                service_info.connectable,
                 {k: v.hex() for k, v in service_info.manufacturer_data.items()}
                 if service_info.manufacturer_data
                 else None,
                 service_info.service_uuids,
             )
 
-            if service_info.address.upper() != self._address.upper():
-                return
-
             mfr_data = service_info.manufacturer_data
             if not mfr_data:
-                _LOGGER.debug("No manufacturer data for %s", self._address)
+                _LOGGER.debug("No manufacturer data in advertisement")
                 return
 
             for company_id, raw in mfr_data.items():
                 _LOGGER.debug(
-                    "Parsing manufacturer data: company=0x%04x raw=%s len=%d",
+                    "Manufacturer data: company=0x%04x raw=%s len=%d",
                     company_id,
                     raw.hex(),
                     len(raw),
@@ -146,12 +144,15 @@ class LetraTagSensorBase(SensorEntity):
                     self.async_write_ha_state()
                 break
 
+        # Filter by address directly in the matcher for efficiency.
+        # Try both connectable and non-connectable since the LetraTag
+        # may send different advertisement types.
         self.async_on_remove(
             async_register_callback(
                 self.hass,
                 _handle_update,
                 BluetoothCallbackMatcher(
-                    connectable=True,
+                    address=self._address,
                 ),
                 BluetoothScanningMode.ACTIVE,
             )
