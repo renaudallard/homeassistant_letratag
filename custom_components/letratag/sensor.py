@@ -103,29 +103,49 @@ class LetraTagSensorBase(SensorEntity):
 
     async def async_added_to_hass(self) -> None:
         """Register BLE advertisement callback."""
+        _LOGGER.debug(
+            "Registering BLE callback for %s (%s)",
+            self._device_name,
+            self._address,
+        )
 
         @callback
         def _handle_update(
             service_info: BluetoothServiceInfoBleak,
             change: Any,
         ) -> None:
+            _LOGGER.debug(
+                "BLE callback: addr=%s name=%s mfr_data=%s service_uuids=%s",
+                service_info.address,
+                service_info.name,
+                {k: v.hex() for k, v in service_info.manufacturer_data.items()}
+                if service_info.manufacturer_data
+                else None,
+                service_info.service_uuids,
+            )
+
             if service_info.address.upper() != self._address.upper():
                 return
 
             mfr_data = service_info.manufacturer_data
             if not mfr_data:
+                _LOGGER.debug("No manufacturer data for %s", self._address)
                 return
 
-            for _company_id, raw in mfr_data.items():
+            for company_id, raw in mfr_data.items():
+                _LOGGER.debug(
+                    "Parsing manufacturer data: company=0x%04x raw=%s len=%d",
+                    company_id,
+                    raw.hex(),
+                    len(raw),
+                )
                 parsed = parse_manufacturer_data(raw)
                 if parsed:
+                    _LOGGER.debug("Parsed: %s", parsed)
                     self._adv_data = parsed
                     self.async_write_ha_state()
                 break
 
-        # Match any advertisement from any address - we filter by address
-        # in the callback. Using connectable=True since the LetraTag
-        # advertises as a connectable device.
         self.async_on_remove(
             async_register_callback(
                 self.hass,
