@@ -1,12 +1,13 @@
 {
   "domain": "letratag",
   "name": "DYMO LetraTag",
-  "codeowners": [],
+  "codeowners": ["@renaudallard"],
   "config_flow": true,
   "dependencies": ["bluetooth_adapters"],
-  "documentation": "https://github.com/homeassistant-letratag",
+  "documentation": "https://github.com/renaudallard/homeassistant-letratag",
   "homeassistant": "2026.2.0",
   "iot_class": "local_push",
+  "issue_tracker": "https://github.com/renaudallard/homeassistant-letratag/issues",
   "requirements": ["bleak>=0.21.0", "Pillow>=10.0.0"],
   "bluetooth": [
     {
