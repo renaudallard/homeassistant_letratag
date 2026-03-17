@@ -173,17 +173,12 @@ class LetraTagPrinter:
             try:
                 _LOGGER.debug("Connecting to %s", self.address)
                 async with BleakClient(target, timeout=CONNECT_TIMEOUT) as client:
-                    _LOGGER.debug(
-                        "Connected, MTU=%d, services=%d",
-                        client.mtu_size,
-                        len(client.services),
-                    )
+                    _LOGGER.debug("Connected, MTU=%d", client.mtu_size)
 
-                    # List available characteristics for debugging
                     for service in client.services:
                         for char in service.characteristics:
                             _LOGGER.debug(
-                                "  Characteristic %s: %s",
+                                "  %s: %s",
                                 char.uuid,
                                 char.properties,
                             )
