@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://brands.home-assistant.io/_/bluetooth/dark_logo.png" width="64" alt="">
+  <img src="logo.png" width="128" alt="DYMO LetraTag">
 </p>
 
 <h1 align="center">DYMO LetraTag for Home Assistant</h1>
