@@ -34,6 +34,7 @@ import logging
 from typing import Any
 
 from homeassistant.components.bluetooth import (
+    BluetoothScanningMode,
     BluetoothServiceInfoBleak,
     async_register_callback,
 )
@@ -49,7 +50,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, TAPE_SIZES, ble_uuid, SERVICE_UUID
+from .const import DOMAIN, TAPE_SIZES
 from .protocol import parse_manufacturer_data
 
 _LOGGER = logging.getLogger(__name__)
@@ -102,7 +103,6 @@ class LetraTagSensorBase(SensorEntity):
 
     async def async_added_to_hass(self) -> None:
         """Register BLE advertisement callback."""
-        service_uuid = ble_uuid(SERVICE_UUID)
 
         @callback
         def _handle_update(
@@ -123,15 +123,17 @@ class LetraTagSensorBase(SensorEntity):
                     self.async_write_ha_state()
                 break
 
+        # Match any advertisement from any address - we filter by address
+        # in the callback. Using connectable=True since the LetraTag
+        # advertises as a connectable device.
         self.async_on_remove(
             async_register_callback(
                 self.hass,
                 _handle_update,
                 BluetoothCallbackMatcher(
-                    service_uuid=service_uuid,
-                    connectable=False,
+                    connectable=True,
                 ),
-                None,
+                BluetoothScanningMode.ACTIVE,
             )
         )
 
