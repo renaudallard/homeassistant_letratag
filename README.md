@@ -8,7 +8,7 @@
   <a href="https://github.com/homeassistant-letratag"><img src="https://img.shields.io/badge/home%20assistant-2026.2+-blue?style=flat-square&logo=homeassistant" alt="HA 2026.2+"></a>
   <a href="#"><img src="https://img.shields.io/badge/bluetooth-BLE-0082FC?style=flat-square&logo=bluetooth" alt="BLE"></a>
   <a href="#"><img src="https://img.shields.io/badge/protocol-reverse--engineered-orange?style=flat-square" alt="Reverse Engineered"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="MIT License"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-BSD--2--Clause-green?style=flat-square" alt="BSD 2-Clause License"></a>
 </p>
 
 <p align="center">
@@ -310,4 +310,4 @@ Commands are concatenated into a body, then wrapped:
 
 ## License
 
-MIT
+BSD 2-Clause. See [LICENSE](LICENSE).
