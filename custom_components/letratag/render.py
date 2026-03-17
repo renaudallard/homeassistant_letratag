@@ -378,6 +378,20 @@ def rasterlines_to_bytes(rasterlines: list[list[int]]) -> bytes:
     return bytes(result)
 
 
+def enlarge(rasterlines: list[list[int]]) -> list[list[int]]:
+    """Double each rasterline (column) for the printer's step rate.
+
+    The Genie app's SHOULD_ENLARGE=true duplicates every column so
+    each image pixel maps to two printer dot columns. This matches
+    the printer's stepper motor cadence.
+    """
+    result = []
+    for column in rasterlines:
+        result.append(column)
+        result.append(column)
+    return result
+
+
 def prepare_print_data(
     img: Image.Image,
     label_height: int = LABEL_HEIGHT,
@@ -385,6 +399,9 @@ def prepare_print_data(
     max_width: int | None = None,
 ) -> tuple[int, bytes]:
     """Convert a PIL Image to print-ready data.
+
+    Pipeline matches the Genie app exactly:
+      image_to_rasterlines -> swap_bits -> enlarge -> adjust_padding -> bytes
 
     Args:
         img: Input image (any mode, will be converted).
@@ -398,6 +415,7 @@ def prepare_print_data(
     """
     rasterlines = image_to_rasterlines(img, label_height)
     rasterlines = swap_bits(rasterlines)
+    rasterlines = enlarge(rasterlines)
     rasterlines = adjust_padding(rasterlines, label_height, min_raster_length)
 
     if max_width and len(rasterlines) > max_width:

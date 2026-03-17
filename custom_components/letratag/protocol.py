@@ -199,14 +199,17 @@ def build_print_stream(
 ) -> ProtocolStream:
     """Build the complete print command stream.
 
-    Assembles: StartJob + Copies + PrintData + Cut + Status + EndJob,
+    Assembles: StartJob + Copies + PrintData + FormFeed + Status + EndJob,
     then wraps in the communication protocol stream.
+
+    The Genie (LetraTag Connect) app always uses FormFeed after print data.
+    The Cut command is only used by the Avatar app variant.
     """
     parts = [
         build_start_job(),
         build_copies(copies),
         build_print_data(width, label_height_padded, print_data),
-        build_cut(cut),
+        build_form_feed(),
         build_status_request(),
         build_end_job(),
     ]
