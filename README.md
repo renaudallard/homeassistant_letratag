@@ -1,23 +1,55 @@
-# DYMO LetraTag Home Assistant Integration
+<p align="center">
+  <img src="https://brands.home-assistant.io/_/bluetooth/dark_logo.png" width="64" alt="">
+</p>
 
-Custom Home Assistant integration for DYMO LetraTag 200B Bluetooth label printers.
+<h1 align="center">DYMO LetraTag for Home Assistant</h1>
 
-Communicates directly over BLE using the protocol reverse-engineered from the
-DYMO LetraTag Connect 2.1.0 Android application.
+<p align="center">
+  <a href="https://github.com/homeassistant-letratag"><img src="https://img.shields.io/badge/home%20assistant-2026.2+-blue?style=flat-square&logo=homeassistant" alt="HA 2026.2+"></a>
+  <a href="#"><img src="https://img.shields.io/badge/bluetooth-BLE-0082FC?style=flat-square&logo=bluetooth" alt="BLE"></a>
+  <a href="#"><img src="https://img.shields.io/badge/protocol-reverse--engineered-orange?style=flat-square" alt="Reverse Engineered"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="MIT License"></a>
+</p>
+
+<p align="center">
+  Custom Home Assistant integration for <strong>DYMO LetraTag 200B</strong> Bluetooth label printers.<br>
+  BLE protocol fully reverse-engineered from the DYMO LetraTag Connect Android app.
+</p>
+
+---
+
+## Features
+
+- **BLE auto-discovery** - printers appear automatically in Home Assistant
+- **Text label printing** - render and print text directly from service calls
+- **Image label printing** - print any image file, auto-scaled to tape size
+- **Native resolution rendering** - TrueType text rendered at 26px, pixel-perfect, no screenshots or line doubling
+- **Live status sensors** - battery, cassette type, and printer state from passive BLE advertisements
+- **Multi-line support** - split text across lines with `\n`
+- **Custom fonts** - use any TrueType font for label text
+
+---
 
 ## Requirements
 
-- Home Assistant 2026.2 or later
-- Bluetooth adapter (built-in or USB)
-- DYMO LetraTag 200B printer
-- 12mm tape cassette
+| Component | Version |
+|-----------|---------|
+| Home Assistant | 2026.2+ |
+| Python | 3.12+ |
+| Bluetooth | BLE adapter (built-in or USB) |
+| Hardware | DYMO LetraTag 200B |
+| Tape | 12mm cassette |
+
+---
 
 ## Installation
 
-Copy `custom_components/letratag/` to your Home Assistant `config/custom_components/` directory:
+### Manual
+
+Copy `custom_components/letratag/` into your Home Assistant configuration directory:
 
 ```
-config/
+<config>/
   custom_components/
     letratag/
       __init__.py
@@ -36,90 +68,193 @@ config/
 
 Restart Home Assistant.
 
+### HACS (Custom Repository)
+
+1. Open **HACS > Integrations > Custom repositories**
+2. Add the repository URL and select **Integration**
+3. Install **DYMO LetraTag** and restart
+
+---
+
 ## Setup
 
-The integration auto-discovers LetraTag printers via BLE advertisements.
+The integration auto-discovers nearby LetraTag printers via BLE.
 
 1. Go to **Settings > Devices & Services**
-2. The printer should appear as a discovered device
+2. The printer appears as a discovered device
 3. Click **Configure** and confirm
 
-For manual setup: **Add Integration > DYMO LetraTag**, then enter the Bluetooth address.
+**Manual setup:** Add Integration > search **DYMO LetraTag** > enter the Bluetooth address.
+
+---
 
 ## Sensors
 
-| Sensor | Description |
-|--------|-------------|
-| Battery | Battery level (percentage) with charging and low battery attributes |
-| Cassette | Installed tape cassette type (Empty, 6mm, 9mm, 12mm, 19mm, 24mm) |
-| Status | Printer state: Ready, Busy, Tape jam, Cutter jam, Battery too low |
+Three sensors are created per printer, updated passively from BLE advertisement data (no active connection needed):
 
-Sensor data comes from BLE advertisement manufacturer data (passive, no connection required).
+| Sensor | Type | Description |
+|--------|------|-------------|
+| **Battery** | `sensor` | Battery percentage (10/40/70/100%) with `charging`, `battery_low` attributes |
+| **Cassette** | `sensor` | Tape type: Empty, 6mm, 9mm, 12mm, 19mm, 24mm |
+| **Status** | `sensor` | Printer state: Ready, Busy, Tape jam, Cutter jam, Battery too low |
+
+---
 
 ## Services
 
 ### `letratag.print_label`
 
-Print a text label.
+Print a text label. Font size is auto-calculated to fill the tape height, or can be set explicitly.
 
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `text` | string | yes | | Text to print. Use `\n` for multi-line. |
-| `copies` | int | no | 1 | Number of copies (1-255) |
-| `cut` | bool | no | true | Cut tape after printing |
-| `font_size` | int | no | auto | Font size in pixels (6-26) |
-| `font_path` | string | no | system | Path to a custom .ttf font |
+| Parameter | Type | Required | Default | Description |
+|-----------|------|:--------:|---------|-------------|
+| `text` | string | **yes** | | Label text. Use `\n` for multiple lines |
+| `copies` | int | no | `1` | Number of copies (1 - 255) |
+| `cut` | bool | no | `true` | Cut tape after printing |
+| `font_size` | int | no | auto | Font size in pixels (6 - 26) |
+| `font_path` | string | no | system | Path to a `.ttf` font file |
 
-Example:
 ```yaml
+# Simple label
 service: letratag.print_label
 data:
   text: "Hello World"
+```
+
+```yaml
+# Multi-line with options
+service: letratag.print_label
+data:
+  text: "Kitchen\nShelf 3"
   copies: 2
   cut: true
+  font_size: 10
 ```
 
 ### `letratag.print_image`
 
-Print an image file.
+Print an image file. The image is automatically resized to the tape height and converted to 1-bit monochrome.
 
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `image_path` | string | yes | | Path to image file |
-| `copies` | int | no | 1 | Number of copies (1-255) |
-| `cut` | bool | no | true | Cut tape after printing |
+| Parameter | Type | Required | Default | Description |
+|-----------|------|:--------:|---------|-------------|
+| `image_path` | string | **yes** | | Path to image file (PNG, BMP, JPG, etc.) |
+| `copies` | int | no | `1` | Number of copies (1 - 255) |
+| `cut` | bool | no | `true` | Cut tape after printing |
 
-The image is automatically resized to fit the tape height (26px for 12mm tape)
-and converted to 1-bit monochrome.
+```yaml
+service: letratag.print_image
+data:
+  image_path: "/config/labels/qr_wifi.png"
+  copies: 1
+```
+
+---
 
 ## Text Rendering
 
-Text is rendered directly at the printer's native resolution (26 pixels height
-for 12mm tape) using Pillow TrueType font rendering. No screenshots, no line
-doubling: pixel-perfect output at the hardware level.
+Text is rendered directly at the printer's native resolution using Pillow TrueType font rendering. No screenshots, no bitmap scaling, no line doubling.
 
-Font selection priority:
-1. Custom font via `font_path` parameter
-2. DejaVu Sans Bold (system)
-3. Liberation Sans Bold (system)
-4. Noto Sans Bold (system)
-5. Pillow default bitmap font (fallback)
+**Font priority:**
 
-Font size is auto-calculated to maximize the text height within the label area,
-or can be set explicitly via the `font_size` parameter.
+| Priority | Font |
+|:--------:|------|
+| 1 | Custom font via `font_path` |
+| 2 | DejaVu Sans Bold |
+| 3 | Liberation Sans Bold |
+| 4 | Noto Sans Bold |
+| 5 | FreeSans Bold |
+| 6 | Pillow default (fallback) |
 
-## BLE Protocol
+---
 
-The integration implements the full DYMO LetraTag BLE print protocol:
+## BLE Protocol Reference
 
-- **Service UUID**: `be3dd650-2b3d-42f1-99c1-f0f749dd0678`
-- **Write characteristic**: `be3dd651-2b3d-42f1-99c1-f0f749dd0678`
-- **Notify characteristic**: `be3dd652-2b3d-42f1-99c1-f0f749dd0678`
+Protocol reverse-engineered from the DYMO LetraTag Connect 2.1.0 APK.
 
-Print sequence: StartJob, SetCopies, PrintData (1bpp raster), Cut, Status, EndJob.
+### UUIDs
 
-Data is framed with a 9-byte header (preamble, flags, magic, length, checksum)
-and the body is split into 500-byte chunks with sequence numbers.
+| Role | UUID |
+|------|------|
+| Service | `be3dd650-2b3d-42f1-99c1-f0f749dd0678` |
+| Write (print request) | `be3dd651-2b3d-42f1-99c1-f0f749dd0678` |
+| Notify (print reply) | `be3dd652-2b3d-42f1-99c1-f0f749dd0678` |
+| Short command | `be3dd653-2b3d-42f1-99c1-f0f749dd0678` |
+
+### Commands
+
+All commands are prefixed with `ESC` (`0x1B`):
+
+| Command | Code | Bytes | Description |
+|---------|------|:-----:|-------------|
+| StartJob | `s` | 6 | Begin print job with 4-byte job ID |
+| MediaType | `M` | 6 | Set cassette type |
+| PrintDensity | `C` | - | Set print density |
+| PrintData | `D` | 12+N | Raster data: bpp, alignment, width(4), height(4), pixels(N) |
+| FormFeed | `E` | 2 | Form feed |
+| Status | `A` | 2 | Request printer status |
+| Copies | `#` | 3 | Set number of copies |
+| Cut | `p` | 3 | Cut tape (`0x30`) or skip (`0x31`) |
+| EndJob | `Q` | 2 | End print job |
+
+### Print Sequence
+
+```
+StartJob -> Copies -> PrintData -> Cut -> Status -> EndJob
+```
+
+### Communication Framing
+
+Commands are concatenated into a body, then wrapped:
+
+**Header (9 bytes):**
+
+```
+[0]     0xFF        preamble
+[1]     0xF0        flags
+[2:4]   0x12 0x34   magic
+[4:8]   uint32 LE   body length
+[8]     uint8       checksum (sum of [0:8] & 0xFF)
+```
+
+**Body:** split into 500-byte chunks, each prefixed with a 1-byte sequence number (value 27 is skipped to avoid ESC collision). Magic bytes `0x12 0x34` are appended to the last chunk.
+
+### Raster Format
+
+- 1 bit per pixel (`bpp = 0x81`), monochrome
+- Image is stored column-by-column (each rasterline = one vertical column)
+- 26 pixels per column for 12mm tape, packed into 4 bytes (32 bits)
+- Byte order within each column is reversed in 8-bit groups before packing
+
+### Manufacturer Data (Advertisement)
+
+| Byte | Bits | Field |
+|:----:|------|-------|
+| 0 | [7:4] | Hardware revision |
+| 1 | [3:0] | Cassette ID (0=empty, 1=6mm, 2=9mm, 3=12mm, 4=19mm, 5=24mm) |
+| 1 | [4] | Carbon type |
+| 1 | [5] | Busy / locked |
+| 2 | [0] | Tape jam |
+| 2 | [1] | Cutter jam |
+| 2 | [2] | Battery too low to print |
+| 2 | [3] | Battery low |
+| 2 | [5:4] | Battery level (0-3) |
+| 2 | [6] | Charging indicator |
+
+### Print Response Codes
+
+| Code | Meaning |
+|:----:|---------|
+| 0 | Success |
+| 1 | Printing / ready for next label |
+| 2, 5 | Failed |
+| 3 | Success, battery low |
+| 4 | Cancelled |
+| 6 | Failed, battery low |
+| 7 | No cassette |
+| 8 | Bay open |
+| 9 | Cutter jam |
+
+---
 
 ## License
 
