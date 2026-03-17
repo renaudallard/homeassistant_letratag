@@ -60,6 +60,9 @@ from .protocol import (
 
 _LOGGER = logging.getLogger(__name__)
 
+# Desired MTU for large chunk writes (app uses autoMaxMTU)
+_DESIRED_MTU = 512
+
 
 class PrintError(Exception):
     """Raised when a print operation fails."""
@@ -76,11 +79,42 @@ class LetraTagPrinter:
         self._notify_uuid = ble_uuid(PRINT_REPLY_UUID, device_uuid)
         self._print_lock = asyncio.Lock()
 
+    async def _request_mtu(self, client: BleakClient) -> int:
+        """Request a larger MTU for bulk data transfer.
+
+        The DYMO app uses autoMaxMTU=true which negotiates the maximum.
+        Returns the negotiated MTU size.
+        """
+        try:
+            mtu = client.mtu_size
+            _LOGGER.debug("Initial MTU: %d", mtu)
+            if mtu < _DESIRED_MTU:
+                # On BlueZ, requesting MTU is done via the backend
+                backend = getattr(client, "_backend", None)
+                if backend and hasattr(backend, "_acquire_mtu"):
+                    mtu = await backend._acquire_mtu()
+                    _LOGGER.debug("Negotiated MTU: %d", mtu)
+                elif backend and hasattr(backend, "request_mtu"):
+                    mtu = await backend.request_mtu(_DESIRED_MTU)
+                    _LOGGER.debug("Requested MTU: %d", mtu)
+            return mtu
+        except Exception as err:
+            _LOGGER.debug("MTU negotiation failed: %s", err)
+            return client.mtu_size
+
     async def _write_stream(self, client: BleakClient, stream: ProtocolStream) -> None:
-        """Write a protocol stream to the printer."""
-        await client.write_gatt_char(self._write_uuid, stream.header)
+        """Write a protocol stream to the printer.
+
+        Header is written with response (reliable delivery).
+        Body chunks use write-without-response for throughput,
+        matching the app's bulk transfer behavior.
+        """
+        # Write header with response
+        await client.write_gatt_char(self._write_uuid, stream.header, response=True)
+
+        # Write body chunks without response for speed
         for chunk in stream.body_chunks:
-            await client.write_gatt_char(self._write_uuid, chunk)
+            await client.write_gatt_char(self._write_uuid, chunk, response=False)
 
     async def print_image(
         self,
@@ -144,6 +178,10 @@ class LetraTagPrinter:
                 async with BleakClient(target, timeout=CONNECT_TIMEOUT) as client:
                     _LOGGER.debug("Connected to %s", self.address)
 
+                    # Negotiate max MTU for 500-byte chunks
+                    mtu = await self._request_mtu(client)
+                    _LOGGER.debug("Using MTU: %d", mtu)
+
                     await client.start_notify(self._notify_uuid, _notification_handler)
 
                     await self._write_stream(client, stream)
@@ -185,7 +223,9 @@ class LetraTagPrinter:
             return {}
 
     @staticmethod
-    def parse_advertisement(manufacturer_data: dict[int, bytes]) -> dict:
+    def parse_advertisement(
+        manufacturer_data: dict[int, bytes],
+    ) -> dict:
         """Parse manufacturer data from a BLE advertisement."""
         for _company_id, data in manufacturer_data.items():
             return parse_manufacturer_data(data)
