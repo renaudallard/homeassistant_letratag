@@ -19,7 +19,13 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError
 import homeassistant.helpers.config_validation as cv
 
-from .const import DOMAIN, SERVICE_PRINT_IMAGE, SERVICE_PRINT_LABEL
+from .const import (
+    DOMAIN,
+    FONT_MAP,
+    SERVICE_PRINT_IMAGE,
+    SERVICE_PRINT_LABEL,
+    resolve_font,
+)
 from .printer import LetraTagPrinter, PrintError
 
 _LOGGER = logging.getLogger(__name__)
@@ -33,8 +39,10 @@ PRINT_LABEL_SCHEMA = vol.Schema(
             vol.Coerce(int), vol.Range(min=1, max=255)
         ),
         vol.Optional("cut", default=True): cv.boolean,
-        vol.Optional("font_size"): vol.All(vol.Coerce(int), vol.Range(min=6, max=26)),
+        vol.Optional("font_size"): vol.All(vol.Coerce(int), vol.Range(min=6, max=52)),
+        vol.Optional("font_name"): vol.In(list(FONT_MAP.keys())),
         vol.Optional("font_path"): cv.string,
+        vol.Optional("rotate", default=False): cv.boolean,
     }
 )
 
@@ -81,6 +89,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not hass.services.has_service(DOMAIN, SERVICE_PRINT_LABEL):
         _register_services(hass)
 
+    # Register the Lovelace card as a frontend resource
+    hass.http.register_static_path(
+        f"/local/{DOMAIN}/letratag-card.js",
+        str(Path(__file__).parent / "www" / "letratag-card.js"),
+        cache_headers=False,
+    )
+
     return True
 
 
@@ -105,13 +120,22 @@ def _register_services(hass: HomeAssistant) -> None:
         """Handle the print_label service call."""
         printer, ble_device = _get_printer(hass)
 
+        # Resolve font: font_name takes priority over font_path
+        font_path = call.data.get("font_path")
+        font_name = call.data.get("font_name")
+        if font_name:
+            resolved = resolve_font(font_name)
+            if resolved:
+                font_path = resolved
+
         try:
             result = await printer.print_label(
                 text=call.data["text"],
                 copies=call.data.get("copies", 1),
                 cut=call.data.get("cut", True),
-                font_path=call.data.get("font_path"),
+                font_path=font_path,
                 font_size=call.data.get("font_size"),
+                rotate=call.data.get("rotate", False),
                 ble_device=ble_device,
             )
             _LOGGER.info("Print result: %s", result)

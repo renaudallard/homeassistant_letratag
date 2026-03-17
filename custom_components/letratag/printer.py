@@ -33,7 +33,7 @@ from .protocol import (
     parse_manufacturer_data,
     parse_notification,
 )
-from .render import prepare_print_data, render_text
+from .render import prepare_print_data, render_text, render_text_banner
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -78,6 +78,7 @@ class LetraTagPrinter:
         cut: bool = True,
         font_path: str | None = None,
         font_size: int | None = None,
+        rotate: bool = False,
         ble_device: Any | None = None,
     ) -> str:
         """Print a text label.
@@ -88,6 +89,7 @@ class LetraTagPrinter:
             cut: Whether to cut the tape after printing.
             font_path: Optional path to a .ttf font file.
             font_size: Optional font size in pixels.
+            rotate: If True, render in banner mode (90 degree rotation).
             ble_device: Optional BleakDevice from HA bluetooth.
 
         Returns:
@@ -96,12 +98,20 @@ class LetraTagPrinter:
         Raises:
             PrintError: If the print operation fails.
         """
-        img = render_text(
-            text,
-            label_height=LABEL_HEIGHT,
-            font_path=font_path,
-            font_size=font_size,
-        )
+        if rotate:
+            img = render_text_banner(
+                text,
+                label_height=LABEL_HEIGHT,
+                font_path=font_path,
+                font_size=font_size,
+            )
+        else:
+            img = render_text(
+                text,
+                label_height=LABEL_HEIGHT,
+                font_path=font_path,
+                font_size=font_size,
+            )
         return await self.print_image(
             img, copies=copies, cut=cut, ble_device=ble_device
         )

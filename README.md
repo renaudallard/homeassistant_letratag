@@ -21,12 +21,15 @@
 ## Features
 
 - **BLE auto-discovery** - printers appear automatically in Home Assistant
+- **Lovelace card** - responsive UI with live preview, font/size selectors, and banner mode toggle
 - **Text label printing** - render and print text directly from service calls
+- **Banner mode** - 90 degree rotated text for vertical/spine labels
 - **Image label printing** - print any image file, auto-scaled to tape size
 - **Native resolution rendering** - TrueType text rendered at 26px, pixel-perfect, no screenshots or line doubling
 - **Live status sensors** - battery, cassette type, and printer state from passive BLE advertisements
+- **5 built-in fonts** - DejaVu Sans, DejaVu Mono, DejaVu Serif, Liberation Sans, FreeSans (all Bold)
 - **Multi-line support** - split text across lines with `\n`
-- **Custom fonts** - use any TrueType font for label text
+- **Custom fonts** - use any TrueType font via path
 
 ---
 
@@ -88,6 +91,34 @@ The integration auto-discovers nearby LetraTag printers via BLE.
 
 ---
 
+## Lovelace Card
+
+A custom card is included for printing labels directly from the UI.
+
+### Adding the card
+
+1. Go to **Settings > Dashboards > Resources**
+2. Add resource: `/local/letratag/letratag-card.js` (type: JavaScript Module)
+3. Add a card to your dashboard with type `custom:letratag-card`
+
+```yaml
+type: custom:letratag-card
+title: Label Printer    # optional, defaults to "DYMO LetraTag"
+```
+
+### Card features
+
+- **Live label preview** - shows a tape-shaped preview that updates as you type
+- **Text input** - multi-line textarea, Ctrl+Enter to print
+- **Font selector** - 5 built-in fonts optimized for 26px resolution
+- **Size slider** - set explicit pixel size or leave on Auto
+- **Normal / Banner toggle** - switch between horizontal text and 90 degree banner mode
+- **Copies and cut** - set copy count and tape cutting
+- **Sensor display** - shows battery, cassette, and status from discovered sensors
+- **Responsive** - adapts to any column width, stacks controls on narrow screens
+
+---
+
 ## Sensors
 
 Three sensors are created per printer, updated passively from BLE advertisement data (no active connection needed):
@@ -111,8 +142,10 @@ Print a text label. Font size is auto-calculated to fill the tape height, or can
 | `text` | string | **yes** | | Label text. Use `\n` for multiple lines |
 | `copies` | int | no | `1` | Number of copies (1 - 255) |
 | `cut` | bool | no | `true` | Cut tape after printing |
-| `font_size` | int | no | auto | Font size in pixels (6 - 26) |
-| `font_path` | string | no | system | Path to a `.ttf` font file |
+| `font_name` | string | no | | One of the 5 built-in fonts (see below) |
+| `font_size` | int | no | auto | Font size in pixels (6 - 52) |
+| `font_path` | string | no | | Path to a custom `.ttf` file (overrides `font_name`) |
+| `rotate` | bool | no | `false` | Banner mode: rotate text 90 degrees |
 
 ```yaml
 # Simple label
@@ -122,13 +155,20 @@ data:
 ```
 
 ```yaml
-# Multi-line with options
+# Multi-line with font choice
 service: letratag.print_label
 data:
   text: "Kitchen\nShelf 3"
   copies: 2
-  cut: true
-  font_size: 10
+  font_name: "DejaVu Mono Bold"
+```
+
+```yaml
+# Banner label (rotated 90 degrees for vertical reading)
+service: letratag.print_label
+data:
+  text: "OFFICE"
+  rotate: true
 ```
 
 ### `letratag.print_image`
@@ -154,16 +194,26 @@ data:
 
 Text is rendered directly at the printer's native resolution using Pillow TrueType font rendering. No screenshots, no bitmap scaling, no line doubling.
 
-**Font priority:**
+**Built-in fonts** (selected for clarity at 26px):
 
-| Priority | Font |
-|:--------:|------|
-| 1 | Custom font via `font_path` |
-| 2 | DejaVu Sans Bold |
-| 3 | Liberation Sans Bold |
-| 4 | Noto Sans Bold |
-| 5 | FreeSans Bold |
-| 6 | Pillow default (fallback) |
+| Name | Style | Best for |
+|------|-------|----------|
+| DejaVu Sans Bold | Sans-serif | General purpose, excellent hinting |
+| DejaVu Mono Bold | Monospace | Serial numbers, codes, aligned text |
+| DejaVu Serif Bold | Serif | Formal labels |
+| Liberation Sans Bold | Sans-serif | Clean, compact |
+| FreeSans Bold | Sans-serif | Wide language support |
+
+If `font_name` is not specified, the system's first available DejaVu font is used.
+
+### Banner Mode
+
+When `rotate` is `true`, each character is rendered at full tape width and placed sequentially along the tape. The result is a label that reads normally when the tape is turned 90 degrees, ideal for:
+
+- File folder spines
+- Cable markers viewed from the side
+- Vertical shelf labels
+- Equipment panel labels
 
 ---
 

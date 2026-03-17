@@ -24,6 +24,18 @@ print_label:
       default: true
       selector:
         boolean:
+    font_name:
+      name: Font
+      description: Font to use for rendering.
+      required: false
+      selector:
+        select:
+          options:
+            - "DejaVu Sans Bold"
+            - "DejaVu Mono Bold"
+            - "DejaVu Serif Bold"
+            - "Liberation Sans Bold"
+            - "FreeSans Bold"
     font_size:
       name: Font Size
       description: Font size in pixels. Auto-calculated if omitted.
@@ -31,14 +43,20 @@ print_label:
       selector:
         number:
           min: 6
-          max: 26
+          max: 52
           mode: slider
     font_path:
       name: Font Path
-      description: Path to a custom TrueType font file.
+      description: Path to a custom TrueType font file (overrides font_name).
       required: false
       selector:
         text:
+    rotate:
+      name: Banner Mode
+      description: Rotate text 90 degrees for vertical banner labels.
+      default: false
+      selector:
+        boolean:
 
 print_image:
   name: Print Image

@@ -113,3 +113,42 @@ DISCONNECT_TIMEOUT = 5.0
 # Service names
 SERVICE_PRINT_LABEL = "print_label"
 SERVICE_PRINT_IMAGE = "print_image"
+
+# Named fonts - display name -> list of candidate file paths
+# Chosen for excellent readability at 26px native resolution
+FONT_MAP = {
+    "DejaVu Sans Bold": [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/dejavu-sans-fonts/DejaVuSans-Bold.ttf",
+    ],
+    "DejaVu Mono Bold": [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf",
+        "/usr/share/fonts/TTF/DejaVuSansMono-Bold.ttf",
+        "/usr/share/fonts/dejavu-sans-mono-fonts/DejaVuSansMono-Bold.ttf",
+    ],
+    "DejaVu Serif Bold": [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf",
+        "/usr/share/fonts/TTF/DejaVuSerif-Bold.ttf",
+        "/usr/share/fonts/dejavu-serif-fonts/DejaVuSerif-Bold.ttf",
+    ],
+    "Liberation Sans Bold": [
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+        "/usr/share/fonts/liberation-sans/LiberationSans-Bold.ttf",
+    ],
+    "FreeSans Bold": [
+        "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+        "/usr/share/fonts/gnu-free/FreeSansBold.ttf",
+    ],
+}
+
+
+def resolve_font(name: str) -> str | None:
+    """Resolve a font display name to its file path on this system."""
+    from pathlib import Path
+
+    candidates = FONT_MAP.get(name, [])
+    for path in candidates:
+        if Path(path).is_file():
+            return path
+    return None

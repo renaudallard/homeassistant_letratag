@@ -10,6 +10,12 @@ Raster format:
   - Within a rasterline, index 0 = top pixel, index N = bottom pixel.
   - Columns are packed into bytes using the printer's expected bit layout
     (swap 8-bit chunks, then pack MSB-first).
+
+Banner mode (rotate=True):
+  - Each character is rendered at full tape width, then characters are
+    laid out sequentially along the tape.
+  - The image is transposed so rows become rasterlines.
+  - When the tape is turned 90 degrees, text reads normally.
 """
 
 from __future__ import annotations
@@ -81,6 +87,26 @@ def _auto_font_size(
     return best
 
 
+def _auto_font_size_by_width(
+    text: str,
+    font_path: str | None,
+    max_width: int,
+) -> int:
+    """Find the largest font size where text width fits within max_width."""
+    best = 8
+    system_font = font_path or _find_system_font()
+    if not system_font:
+        return best
+
+    for size in range(max_width * 2, 6, -1):
+        font = ImageFont.truetype(system_font, size)
+        bbox = font.getbbox(text)
+        text_width = bbox[2] - bbox[0]
+        if text_width <= max_width:
+            return size
+    return best
+
+
 def render_text(
     text: str,
     label_height: int = LABEL_HEIGHT,
@@ -142,6 +168,79 @@ def render_text(
 
     # Convert to 1-bit with threshold
     return img.point(lambda x: 0 if x < 128 else 255, "1")
+
+
+def render_text_banner(
+    text: str,
+    label_height: int = LABEL_HEIGHT,
+    font_path: str | None = None,
+    font_size: int | None = None,
+    spacing: int = 2,
+) -> Image.Image:
+    """Render text in banner mode (rotated 90 degrees for vertical reading).
+
+    Each character is rendered at a size that fills the tape width,
+    then characters are placed sequentially along the tape. The result
+    is transposed so that turning the printed tape 90 degrees shows
+    normally readable text.
+
+    Args:
+        text: Text to render.
+        label_height: Tape width in pixels (26 for 12mm).
+        font_path: Optional path to a .ttf font file.
+        font_size: Explicit font size. Auto-sized to fill tape width if None.
+        spacing: Pixels of gap between characters.
+
+    Returns:
+        A mode "1" PIL Image ready for rasterline conversion.
+    """
+    usable = label_height - 2  # 1px margin each side
+
+    # Find the widest character to determine font size
+    if font_size is None:
+        widest = max(text, key=lambda c: len(c.encode()))
+        if widest == " ":
+            widest = "M"
+        font_size = _auto_font_size_by_width(widest, font_path, usable)
+
+    font = _load_font(font_path, font_size)
+
+    # Measure each character
+    char_blocks: list[tuple[str, int, int]] = []
+    for ch in text:
+        if ch == " ":
+            char_blocks.append((" ", 0, font_size // 2))
+        else:
+            bbox = font.getbbox(ch)
+            ch_w = int(bbox[2] - bbox[0])
+            ch_h = int(bbox[3] - bbox[1])
+            char_blocks.append((ch, ch_w, ch_h))
+
+    # Total height of the vertical layout (becomes tape length after transpose)
+    total_len = sum(h for _, _, h in char_blocks) + spacing * max(0, len(text) - 1)
+
+    # Build the image: label_height wide x total_len tall
+    img = Image.new("L", (label_height, total_len), 255)
+    draw = ImageDraw.Draw(img)
+
+    y_cursor = 0
+    for ch, ch_w, ch_h in char_blocks:
+        if ch == " ":
+            y_cursor += ch_h + spacing
+            continue
+        bbox = font.getbbox(ch)
+        x = (label_height - ch_w) // 2 - bbox[0]
+        y = y_cursor - bbox[1]
+        draw.text((x, y), ch, fill=0, font=font)
+        y_cursor += ch_h + spacing
+
+    # Convert to 1-bit
+    img = img.point(lambda x: 0 if x < 128 else 255, "1")
+
+    # Transpose: swap width and height so rows become rasterlines.
+    # This makes the label_height-wide image into a label_height-tall image,
+    # ready for the standard rasterline column reader.
+    return img.transpose(Image.Transpose.TRANSPOSE)
 
 
 def image_to_rasterlines(
@@ -274,17 +373,29 @@ def render_and_prepare(
     font_path: str | None = None,
     font_size: int | None = None,
     max_width: int | None = None,
+    rotate: bool = False,
 ) -> tuple[int, bytes]:
     """Render text and prepare print data in one step.
+
+    Args:
+        rotate: If True, render in banner mode (90 degree rotation).
 
     Returns:
         (width, print_data) ready for build_print_stream().
     """
-    img = render_text(
-        text,
-        label_height=label_height,
-        font_path=font_path,
-        font_size=font_size,
-        max_width=max_width,
-    )
+    if rotate:
+        img = render_text_banner(
+            text,
+            label_height=label_height,
+            font_path=font_path,
+            font_size=font_size,
+        )
+    else:
+        img = render_text(
+            text,
+            label_height=label_height,
+            font_path=font_path,
+            font_size=font_size,
+            max_width=max_width,
+        )
     return prepare_print_data(img, label_height)
