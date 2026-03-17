@@ -1,0 +1,22 @@
+{
+  "config": {
+    "flow_title": "DYMO LetraTag ({name})",
+    "step": {
+      "bluetooth_confirm": {
+        "title": "Confirm DYMO LetraTag",
+        "description": "Found DYMO LetraTag printer: {name}. Add this device?"
+      },
+      "user": {
+        "title": "Add DYMO LetraTag",
+        "description": "Enter the Bluetooth address of your DYMO LetraTag printer, or select a discovered device.",
+        "data": {
+          "address": "Bluetooth address",
+          "name": "Device name"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "This device is already configured."
+    }
+  }
+}

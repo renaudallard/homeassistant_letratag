@@ -1,0 +1,68 @@
+print_label:
+  name: Print Label
+  description: Print a text label on the DYMO LetraTag printer.
+  fields:
+    text:
+      name: Text
+      description: Text to print. Use \n for multi-line labels.
+      required: true
+      example: "Hello World"
+      selector:
+        text:
+    copies:
+      name: Copies
+      description: Number of copies to print.
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 255
+          mode: box
+    cut:
+      name: Cut
+      description: Cut the tape after printing.
+      default: true
+      selector:
+        boolean:
+    font_size:
+      name: Font Size
+      description: Font size in pixels. Auto-calculated if omitted.
+      required: false
+      selector:
+        number:
+          min: 6
+          max: 26
+          mode: slider
+    font_path:
+      name: Font Path
+      description: Path to a custom TrueType font file.
+      required: false
+      selector:
+        text:
+
+print_image:
+  name: Print Image
+  description: Print an image on the DYMO LetraTag printer.
+  fields:
+    image_path:
+      name: Image Path
+      description: Path to the image file to print.
+      required: true
+      example: "/config/labels/my_label.png"
+      selector:
+        text:
+    copies:
+      name: Copies
+      description: Number of copies to print.
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 255
+          mode: box
+    cut:
+      name: Cut
+      description: Cut the tape after printing.
+      default: true
+      selector:
+        boolean:
