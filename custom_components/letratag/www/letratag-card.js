@@ -64,7 +64,7 @@ class LetraTagCard extends HTMLElement {
     statusEl.textContent = "";
     for (const eid of entities) {
       const s = this._hass.states[eid];
-      if (!s) continue;
+      if (!s || s.state === "unavailable" || s.state === "unknown") continue;
       const name = s.attributes.friendly_name || eid.split(".")[1];
       const icon = s.attributes.icon || "mdi:printer";
       const chip = document.createElement("span");
