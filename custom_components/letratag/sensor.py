@@ -24,21 +24,26 @@
 
 """Sensor platform for DYMO LetraTag integration.
 
-Provides sensors for battery level, cassette type, and printer status.
-Since the LetraTag does not include manufacturer data in its BLE
-advertisements, status is read via GATT by connecting periodically.
+The LetraTag does not include manufacturer data in its BLE
+advertisements. Instead, we watch for advertisements to detect
+when the printer is on, then connect via GATT to read status.
 """
 
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
 from typing import Any
 
 from bleak import BleakClient
 from bleak.exc import BleakError
 
 from homeassistant.components import bluetooth
+from homeassistant.components.bluetooth import (
+    BluetoothScanningMode,
+    BluetoothServiceInfoBleak,
+    async_register_callback,
+)
+from homeassistant.components.bluetooth.match import BluetoothCallbackMatcher
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
@@ -46,14 +51,9 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_ADDRESS, CONF_NAME, PERCENTAGE
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import (
-    CoordinatorEntity,
-    DataUpdateCoordinator,
-    UpdateFailed,
-)
 
 from .const import (
     CONNECT_TIMEOUT,
@@ -66,13 +66,7 @@ from .protocol import parse_status_info
 
 _LOGGER = logging.getLogger(__name__)
 
-# Poll interval for status reads
-_POLL_INTERVAL = timedelta(minutes=5)
-
-# Map battery_level field (0-3) to percentage
 _BATTERY_MAP = {0: 10, 1: 40, 2: 70, 3: 100}
-
-# Status command: ESC + 'A' + 0x00
 _STATUS_CMD = bytes([0x1B, 0x41, 0x00])
 
 
@@ -85,29 +79,24 @@ async def _read_printer_status(hass: HomeAssistant, address: str) -> dict[str, A
         hass, address, connectable=True
     )
     if ble_device is None:
-        _LOGGER.debug("Printer %s not found in BLE scanner", address)
         return {}
 
     try:
         async with BleakClient(ble_device, timeout=CONNECT_TIMEOUT) as client:
-            # Write status request
             await client.write_gatt_char(write_uuid, _STATUS_CMD, response=True)
-            # Read reply
             data = await client.read_gatt_char(reply_uuid)
             _LOGGER.debug(
-                "Status response from %s: %s (len=%d)",
+                "Status from %s: %s (len=%d)",
                 address,
                 data.hex() if data else "None",
                 len(data) if data else 0,
             )
             if data and len(data) >= 32:
                 return parse_status_info(data)
-            _LOGGER.debug(
-                "Status response too short: %d bytes", len(data) if data else 0
-            )
+            _LOGGER.debug("Status response too short")
             return {}
     except (BleakError, TimeoutError, OSError) as err:
-        _LOGGER.debug("Status read failed for %s: %s", address, err)
+        _LOGGER.debug("Status read failed: %s", err)
         return {}
 
 
@@ -120,47 +109,86 @@ async def async_setup_entry(
     address = entry.data[CONF_ADDRESS]
     name = entry.data.get(CONF_NAME, "DYMO LetraTag")
 
-    async def _update() -> dict[str, Any]:
-        data = await _read_printer_status(hass, address)
-        if not data:
-            raise UpdateFailed("Could not read printer status")
-        return data
-
-    coordinator = DataUpdateCoordinator(
-        hass,
-        _LOGGER,
-        name=f"{name} status",
-        update_method=_update,
-        update_interval=_POLL_INTERVAL,
-    )
-
-    # Do first refresh; if it fails, sensors start as unavailable
-    await coordinator.async_config_entry_first_refresh()
-
-    entities = [
-        LetraTagBatterySensor(coordinator, entry, address, name),
-        LetraTagCassetteSensor(coordinator, entry, address, name),
-        LetraTagStatusSensor(coordinator, entry, address, name),
+    # Shared state: all sensors read from this dict, updated when
+    # the printer comes online (detected via BLE advertisement).
+    status_data: dict[str, Any] = {}
+    entities: list[LetraTagSensorBase] = [
+        LetraTagBatterySensor(entry, address, name, status_data),
+        LetraTagCassetteSensor(entry, address, name, status_data),
+        LetraTagStatusSensor(entry, address, name, status_data),
     ]
     async_add_entities(entities)
 
+    # Track whether we already fetched status for this "online" period
+    # to avoid repeated connections while the printer keeps advertising.
+    fetched_this_session: dict[str, bool] = {"done": False}
 
-class LetraTagSensorBase(CoordinatorEntity, SensorEntity):
+    @callback
+    def _on_advertisement(
+        service_info: BluetoothServiceInfoBleak,
+        change: Any,
+    ) -> None:
+        """Printer advertisement detected - it's on. Fetch status."""
+        if fetched_this_session["done"]:
+            return
+        fetched_this_session["done"] = True
+        _LOGGER.debug("Printer %s is online, fetching status", address)
+        hass.async_create_task(_fetch_and_update())
+
+    async def _fetch_and_update() -> None:
+        data = await _read_printer_status(hass, address)
+        if data:
+            status_data.clear()
+            status_data.update(data)
+            _LOGGER.debug("Status updated: %s", data)
+            for entity in entities:
+                entity.async_write_ha_state()
+
+    @callback
+    def _on_unavailable(
+        service_info: BluetoothServiceInfoBleak,
+    ) -> None:
+        """Printer went offline. Reset fetch flag for next wake."""
+        _LOGGER.debug("Printer %s went offline", address)
+        fetched_this_session["done"] = False
+
+    # Register for advertisements from this specific address
+    entry.async_on_unload(
+        async_register_callback(
+            hass,
+            _on_advertisement,
+            BluetoothCallbackMatcher(address=address),
+            BluetoothScanningMode.ACTIVE,
+        )
+    )
+
+    # Register for unavailable notifications
+    entry.async_on_unload(
+        bluetooth.async_track_unavailable(
+            hass,
+            _on_unavailable,
+            address,
+            connectable=True,
+        )
+    )
+
+
+class LetraTagSensorBase(SensorEntity):
     """Base class for LetraTag sensors."""
 
     _attr_has_entity_name = True
 
     def __init__(
         self,
-        coordinator: DataUpdateCoordinator,
         entry: ConfigEntry,
         address: str,
         device_name: str,
+        status_data: dict[str, Any],
     ) -> None:
-        super().__init__(coordinator)
         self._entry = entry
         self._address = address
         self._device_name = device_name
+        self._status_data = status_data
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -170,6 +198,10 @@ class LetraTagSensorBase(CoordinatorEntity, SensorEntity):
             manufacturer="DYMO",
             model="LetraTag 200B",
         )
+
+    @property
+    def available(self) -> bool:
+        return bool(self._status_data)
 
 
 class LetraTagBatterySensor(LetraTagSensorBase):
@@ -186,9 +218,7 @@ class LetraTagBatterySensor(LetraTagSensorBase):
 
     @property
     def native_value(self) -> int | None:
-        if not self.coordinator.data:
-            return None
-        level = self.coordinator.data.get("battery_level")
+        level = self._status_data.get("battery_level")
         if level is None:
             return None
         return _BATTERY_MAP.get(level)
@@ -206,9 +236,7 @@ class LetraTagCassetteSensor(LetraTagSensorBase):
 
     @property
     def native_value(self) -> str | None:
-        if not self.coordinator.data:
-            return None
-        sku = self.coordinator.data.get("sku")
+        sku = self._status_data.get("sku")
         if sku and isinstance(sku, dict):
             return sku.get("value", "Unknown")
         return None
@@ -226,23 +254,20 @@ class LetraTagStatusSensor(LetraTagSensorBase):
 
     @property
     def native_value(self) -> str | None:
-        if not self.coordinator.data:
+        if not self._status_data:
             return None
-        error = self.coordinator.data.get("error")
+        error = self._status_data.get("error")
         if error and isinstance(error, dict) and error.get("key", 0) != 0:
             return error.get("value", "Error")
-        status = self.coordinator.data.get("print_status", 0)
-        if status == 0:
-            return "Ready"
-        return f"Status {status}"
+        return "Ready"
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        if not self.coordinator.data:
+        if not self._status_data:
             return {}
         return {
             k: v
-            for k, v in self.coordinator.data.items()
+            for k, v in self._status_data.items()
             if k
             in (
                 "cutter_status",
