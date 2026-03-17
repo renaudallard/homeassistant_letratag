@@ -61,17 +61,26 @@ class LetraTagCard extends HTMLElement {
       )
     );
 
-    let html = "";
+    statusEl.textContent = "";
     for (const eid of entities) {
       const s = this._hass.states[eid];
       if (!s) continue;
       const name = s.attributes.friendly_name || eid.split(".")[1];
       const icon = s.attributes.icon || "mdi:printer";
-      html += `<span class="sensor-chip" title="${eid}">
-        <ha-icon icon="${icon}"></ha-icon> ${name}: <b>${s.state}</b>
-      </span>`;
+      const chip = document.createElement("span");
+      chip.className = "sensor-chip";
+      chip.title = eid;
+      const haIcon = document.createElement("ha-icon");
+      haIcon.setAttribute("icon", icon);
+      chip.appendChild(haIcon);
+      const label = document.createElement("span");
+      label.textContent = ` ${name}: `;
+      chip.appendChild(label);
+      const val = document.createElement("b");
+      val.textContent = s.state;
+      chip.appendChild(val);
+      statusEl.appendChild(chip);
     }
-    statusEl.innerHTML = html || "";
   }
 
   _updatePreview() {
@@ -158,10 +167,12 @@ class LetraTagCard extends HTMLElement {
     if (!el) return;
     el.textContent = this._state.message;
     el.className = `message ${this._state.messageType}`;
+    if (this._msgTimer) clearTimeout(this._msgTimer);
     if (this._state.message) {
-      setTimeout(() => {
+      this._msgTimer = setTimeout(() => {
         el.textContent = "";
         el.className = "message";
+        this._msgTimer = null;
       }, 5000);
     }
   }
@@ -401,6 +412,15 @@ class LetraTagCard extends HTMLElement {
           cursor: pointer;
         }
 
+        .size-row input[type="range"]::-moz-range-thumb {
+          width: 18px;
+          height: 18px;
+          background: var(--primary);
+          border: none;
+          border-radius: 50%;
+          cursor: pointer;
+        }
+
         .size-value {
           min-width: 32px;
           text-align: center;
@@ -512,7 +532,7 @@ class LetraTagCard extends HTMLElement {
       <ha-card>
         <div class="card-header">
           <ha-icon icon="mdi:label-variant"></ha-icon>
-          <span>${this._config.title || "DYMO LetraTag"}</span>
+          <span id="card-title"></span>
         </div>
 
         <div class="card-content">
@@ -549,7 +569,7 @@ class LetraTagCard extends HTMLElement {
             <div class="field" style="grid-column: 1 / -1">
               <label>Size <span id="size-label">(auto)</span></label>
               <div class="size-row">
-                <input type="range" id="size-slider" min="0" max="52" value="0" step="1">
+                <input type="range" id="size-slider" min="0" max="26" value="0" step="1">
                 <span id="size-value" class="size-value">Auto</span>
               </div>
             </div>
@@ -575,6 +595,10 @@ class LetraTagCard extends HTMLElement {
 
     this._attachListeners();
     this._updatePreview();
+
+    // Set title via textContent to prevent XSS
+    const titleEl = this.shadowRoot.getElementById("card-title");
+    if (titleEl) titleEl.textContent = this._config.title || "DYMO LetraTag";
   }
 
   _attachListeners() {

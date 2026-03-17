@@ -194,14 +194,31 @@ def render_text_banner(
     Returns:
         A mode "1" PIL Image ready for rasterline conversion.
     """
+    if not text or not text.strip():
+        # Return a minimal blank label for empty text
+        blank = Image.new("1", (MIN_RASTER_LENGTH, label_height), 1)
+        return blank
+
     usable = label_height - 2  # 1px margin each side
 
-    # Find the widest character to determine font size
+    # Find the widest character to determine font size by measuring each
     if font_size is None:
-        widest = max(text, key=lambda c: len(c.encode()))
-        if widest == " ":
-            widest = "M"
-        font_size = _auto_font_size_by_width(widest, font_path, usable)
+        system_font = font_path or _find_system_font()
+        if system_font:
+            probe = ImageFont.truetype(system_font, usable)
+            widest_w: float = 0
+            widest_ch = "M"
+            for ch in text:
+                if ch == " ":
+                    continue
+                bbox = probe.getbbox(ch)
+                w = bbox[2] - bbox[0]
+                if w > widest_w:
+                    widest_w = w
+                    widest_ch = ch
+            font_size = _auto_font_size_by_width(widest_ch, font_path, usable)
+        else:
+            font_size = 8
 
     font = _load_font(font_path, font_size)
 

@@ -132,3 +132,7 @@ async def async_unload_frontend_if_last_entry(hass: HomeAssistant) -> None:
     resource_id = domain_data.get(_RESOURCE_ID_KEY)
     if isinstance(resource_id, str) and resource_id:
         await _async_unregister_lovelace_resource(hass, resource_id)
+
+    # Clear setup flags so re-adding the integration re-registers the frontend
+    domain_data.pop(_FRONTEND_SETUP_KEY, None)
+    domain_data.pop(_RESOURCE_ID_KEY, None)

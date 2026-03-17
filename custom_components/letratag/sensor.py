@@ -129,7 +129,7 @@ class LetraTagBatterySensor(LetraTagSensorBase):
         level = self._adv_data.get("battery_level")
         if level is None:
             return None
-        return _BATTERY_MAP.get(level, 0)
+        return _BATTERY_MAP.get(level)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:

@@ -54,6 +54,9 @@ class LetraTagConfigFlow(ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Confirm bluetooth discovery."""
+        if self._discovery_info is None:
+            return self.async_abort(reason="already_configured")
+
         if user_input is not None:
             return self.async_create_entry(
                 title=self._discovery_info.name or "DYMO LetraTag",

@@ -21,10 +21,10 @@ from .const import (
     RESPONSE_MESSAGES,
     RESPONSE_SUCCESS,
     RESPONSE_SUCCESS_LOW_BATTERY,
-    ble_uuid,
     PRINT_REPLY_UUID,
     PRINT_REQUEST_UUID,
     SERVICE_UUID,
+    ble_uuid,
 )
 from .protocol import (
     ProtocolStream,
@@ -33,7 +33,6 @@ from .protocol import (
     parse_manufacturer_data,
     parse_notification,
 )
-from .render import prepare_print_data, render_text, render_text_banner
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -51,70 +50,13 @@ class LetraTagPrinter:
         self._service_uuid = ble_uuid(SERVICE_UUID, device_uuid)
         self._write_uuid = ble_uuid(PRINT_REQUEST_UUID, device_uuid)
         self._notify_uuid = ble_uuid(PRINT_REPLY_UUID, device_uuid)
-        self._last_response: int | None = None
-        self._response_event = asyncio.Event()
-
-    def _notification_handler(self, _sender: Any, data: bytearray) -> None:
-        """Handle BLE notification from the printer."""
-        code = parse_notification(data)
-        self._last_response = code
-        self._response_event.set()
-        msg = RESPONSE_MESSAGES.get(code, f"Unknown ({code})")
-        _LOGGER.debug("Printer notification: %s (code=%d)", msg, code)
+        self._print_lock = asyncio.Lock()
 
     async def _write_stream(self, client: BleakClient, stream: ProtocolStream) -> None:
         """Write a protocol stream to the printer."""
-        # Write header
         await client.write_gatt_char(self._write_uuid, stream.header)
-
-        # Write body chunks
         for chunk in stream.body_chunks:
             await client.write_gatt_char(self._write_uuid, chunk)
-
-    async def print_label(
-        self,
-        text: str,
-        copies: int = 1,
-        cut: bool = True,
-        font_path: str | None = None,
-        font_size: int | None = None,
-        rotate: bool = False,
-        ble_device: Any | None = None,
-    ) -> str:
-        """Print a text label.
-
-        Args:
-            text: Text to print. Use newlines for multi-line labels.
-            copies: Number of copies (1-255).
-            cut: Whether to cut the tape after printing.
-            font_path: Optional path to a .ttf font file.
-            font_size: Optional font size in pixels.
-            rotate: If True, render in banner mode (90 degree rotation).
-            ble_device: Optional BleakDevice from HA bluetooth.
-
-        Returns:
-            Status message string.
-
-        Raises:
-            PrintError: If the print operation fails.
-        """
-        if rotate:
-            img = render_text_banner(
-                text,
-                label_height=LABEL_HEIGHT,
-                font_path=font_path,
-                font_size=font_size,
-            )
-        else:
-            img = render_text(
-                text,
-                label_height=LABEL_HEIGHT,
-                font_path=font_path,
-                font_size=font_size,
-            )
-        return await self.print_image(
-            img, copies=copies, cut=cut, ble_device=ble_device
-        )
 
     async def print_image(
         self,
@@ -137,6 +79,8 @@ class LetraTagPrinter:
         Raises:
             PrintError: If the print operation fails.
         """
+        from .render import prepare_print_data
+
         width, print_data = prepare_print_data(img, LABEL_HEIGHT)
 
         stream = build_print_stream(
@@ -156,36 +100,42 @@ class LetraTagPrinter:
     ) -> str:
         """Connect, send a protocol stream, wait for response, disconnect.
 
-        Returns a status message string.
+        Uses a lock to prevent concurrent print jobs from corrupting
+        shared notification state.
         """
-        self._last_response = None
-        self._response_event.clear()
+        async with self._print_lock:
+            response_event = asyncio.Event()
+            last_response: list[int | None] = [None]
 
-        target = ble_device if ble_device is not None else self.address
+            def _notification_handler(_sender: Any, data: bytearray) -> None:
+                code = parse_notification(data)
+                last_response[0] = code
+                response_event.set()
+                msg = RESPONSE_MESSAGES.get(code, f"Unknown ({code})")
+                _LOGGER.debug("Printer notification: %s (code=%d)", msg, code)
 
-        try:
-            async with BleakClient(target, timeout=CONNECT_TIMEOUT) as client:
-                _LOGGER.debug("Connected to %s", self.address)
+            target = ble_device if ble_device is not None else self.address
 
-                # Subscribe to notifications
-                await client.start_notify(self._notify_uuid, self._notification_handler)
+            try:
+                async with BleakClient(target, timeout=CONNECT_TIMEOUT) as client:
+                    _LOGGER.debug("Connected to %s", self.address)
 
-                # Send print data
-                await self._write_stream(client, stream)
-                _LOGGER.debug("Print data sent, waiting for response")
+                    await client.start_notify(self._notify_uuid, _notification_handler)
 
-                # Wait for printer response
-                try:
-                    await asyncio.wait_for(self._response_event.wait(), timeout=30.0)
-                except asyncio.TimeoutError:
-                    raise PrintError("Printer response timeout")
+                    await self._write_stream(client, stream)
+                    _LOGGER.debug("Print data sent, waiting for response")
 
-                await client.stop_notify(self._notify_uuid)
+                    try:
+                        await asyncio.wait_for(response_event.wait(), timeout=30.0)
+                    except asyncio.TimeoutError:
+                        raise PrintError("Printer response timeout")
 
-        except BleakError as err:
-            raise PrintError(f"BLE error: {err}") from err
+                    await client.stop_notify(self._notify_uuid)
 
-        code = self._last_response
+            except BleakError as err:
+                raise PrintError(f"BLE error: {err}") from err
+
+        code = last_response[0]
         if code is None:
             raise PrintError("No response from printer")
 
@@ -198,11 +148,7 @@ class LetraTagPrinter:
         raise PrintError(msg)
 
     async def request_status(self, ble_device: Any | None = None) -> dict:
-        """Send a status request and return parsed manufacturer data.
-
-        This is a lightweight operation that connects briefly to
-        query the printer state.
-        """
+        """Send a status request and return parsed manufacturer data."""
         target = ble_device if ble_device is not None else self.address
 
         try:

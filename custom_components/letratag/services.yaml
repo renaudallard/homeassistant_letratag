@@ -47,7 +47,7 @@ print_label:
           mode: slider
     font_path:
       name: Font Path
-      description: Path to a custom TrueType font file (overrides font_name).
+      description: Path to a custom TrueType font file (used when font_name is not set).
       required: false
       selector:
         text:
