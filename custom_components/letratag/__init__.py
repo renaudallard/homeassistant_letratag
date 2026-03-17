@@ -26,6 +26,7 @@ from .const import (
     SERVICE_PRINT_LABEL,
     resolve_font,
 )
+from .frontend import async_setup_frontend, async_unload_frontend_if_last_entry
 from .printer import LetraTagPrinter, PrintError
 
 _LOGGER = logging.getLogger(__name__)
@@ -63,7 +64,14 @@ def _get_printer(hass: HomeAssistant) -> tuple[LetraTagPrinter, object | None]:
     if not entries:
         raise HomeAssistantError("No DYMO LetraTag printer configured")
 
-    entry_id = next(iter(entries))
+    # Find first non-internal key (config entry ID)
+    entry_id = next(
+        (k for k in entries if not k.startswith("_")),
+        None,
+    )
+    if entry_id is None:
+        raise HomeAssistantError("No DYMO LetraTag printer configured")
+
     printer: LetraTagPrinter = entries[entry_id]["printer"]
     address = entries[entry_id]["address"]
 
@@ -89,12 +97,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not hass.services.has_service(DOMAIN, SERVICE_PRINT_LABEL):
         _register_services(hass)
 
-    # Register the Lovelace card as a frontend resource
-    hass.http.register_static_path(
-        f"/local/{DOMAIN}/letratag-card.js",
-        str(Path(__file__).parent / "www" / "letratag-card.js"),
-        cache_headers=False,
-    )
+    # Register frontend card securely via StaticPathConfig + Lovelace resource
+    await async_setup_frontend(hass)
 
     return True
 
@@ -105,10 +109,12 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id)
 
-    # Unregister services if no entries remain
-    if not hass.data.get(DOMAIN):
+    # Check if any config entries remain (skip internal keys)
+    remaining = [k for k in hass.data.get(DOMAIN, {}) if not k.startswith("_")]
+    if not remaining:
         hass.services.async_remove(DOMAIN, SERVICE_PRINT_LABEL)
         hass.services.async_remove(DOMAIN, SERVICE_PRINT_IMAGE)
+        await async_unload_frontend_if_last_entry(hass)
 
     return unload_ok
 

@@ -97,14 +97,16 @@ A custom card is included for printing labels directly from the UI.
 
 ### Adding the card
 
-1. Go to **Settings > Dashboards > Resources**
-2. Add resource: `/local/letratag/letratag-card.js` (type: JavaScript Module)
-3. Add a card to your dashboard with type `custom:letratag-card`
+The card JS is automatically registered as a Lovelace resource when the integration loads (served securely via `StaticPathConfig` and auto-added to the resource collection). No manual resource configuration needed.
+
+Just add a card to your dashboard:
 
 ```yaml
 type: custom:letratag-card
 title: Label Printer    # optional, defaults to "DYMO LetraTag"
 ```
+
+The resource is automatically removed when the last LetraTag config entry is unloaded.
 
 ### Card features
 
