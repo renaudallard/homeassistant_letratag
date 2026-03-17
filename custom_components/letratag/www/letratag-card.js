@@ -569,7 +569,7 @@ class LetraTagCard extends HTMLElement {
             <div class="field" style="grid-column: 1 / -1">
               <label>Size <span id="size-label">(auto)</span></label>
               <div class="size-row">
-                <input type="range" id="size-slider" min="0" max="26" value="0" step="1">
+                <input type="range" id="size-slider" min="8" max="27" value="27" step="1">
                 <span id="size-value" class="size-value">Auto</span>
               </div>
             </div>
@@ -614,12 +614,13 @@ class LetraTagCard extends HTMLElement {
       this._updateState("fontName", e.target.value);
     });
 
-    // Size slider (0 = auto, then 8-52; skip 1-7 as unreadable)
+    // Size slider: 8..26 explicit, rightmost position = auto (biggest)
     $("size-slider").addEventListener("input", (e) => {
-      let val = parseInt(e.target.value, 10);
-      if (val > 0 && val < 8) val = 8;
-      this._state.fontSize = val;
-      $("size-value").textContent = val === 0 ? "Auto" : `${val}px`;
+      const raw = parseInt(e.target.value, 10);
+      const max = parseInt(e.target.max, 10);
+      const isAuto = raw >= max;
+      this._state.fontSize = isAuto ? 0 : raw;
+      $("size-value").textContent = isAuto ? "Auto" : `${raw}px`;
       this._updatePreview();
     });
 
@@ -633,14 +634,12 @@ class LetraTagCard extends HTMLElement {
           b.classList.toggle("active", b === btn);
         }
 
-        // Adjust size slider max for banner mode
+        // Adjust size slider max for banner mode (last position = auto)
         const slider = $("size-slider");
-        slider.max = isRotate ? "52" : "26";
-        if (parseInt(slider.value, 10) > parseInt(slider.max, 10)) {
-          slider.value = slider.max;
-          this._state.fontSize = parseInt(slider.max, 10);
-          $("size-value").textContent = `${slider.max}px`;
-        }
+        slider.max = isRotate ? "53" : "27";
+        slider.value = slider.max;
+        this._state.fontSize = 0;
+        $("size-value").textContent = "Auto";
 
         this._updatePreview();
       });
