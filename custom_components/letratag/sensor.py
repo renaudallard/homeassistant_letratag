@@ -44,13 +44,9 @@ from homeassistant.components.bluetooth import (
     async_register_callback,
 )
 from homeassistant.components.bluetooth.match import BluetoothCallbackMatcher
-from homeassistant.components.sensor import (
-    SensorDeviceClass,
-    SensorEntity,
-    SensorStateClass,
-)
+from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_ADDRESS, CONF_NAME, PERCENTAGE
+from homeassistant.const import CONF_ADDRESS, CONF_NAME
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -103,25 +99,20 @@ async def _read_printer_status(hass: HomeAssistant, address: str) -> dict[str, A
                             char.uuid,
                             data.hex() if data else "empty",
                         )
-                        # Standard BLE characteristics
-                        if "00002a19" in char.uuid:
-                            result["battery_level_raw"] = data[0]
-                        elif "00002a29" in char.uuid:
-                            result["manufacturer"] = data.decode(
-                                "utf-8", errors="replace"
-                            ).strip()
-                        elif "00002a24" in char.uuid:
-                            result["model"] = data.decode(
-                                "utf-8", errors="replace"
-                            ).strip()
-                        elif "00002a25" in char.uuid:
-                            result["serial"] = data.decode(
-                                "utf-8", errors="replace"
-                            ).strip()
-                        elif "00002a26" in char.uuid:
-                            result["firmware"] = data.decode(
-                                "utf-8", errors="replace"
-                            ).strip()
+                        # Device Information Service chars
+                        _text_chars = {
+                            "00002a29": "manufacturer",
+                            "00002a24": "model",
+                            "00002a25": "serial",
+                            "00002a26": "firmware",
+                            "00002a27": "hardware_revision",
+                        }
+                        for uuid_frag, key in _text_chars.items():
+                            if uuid_frag in char.uuid:
+                                result[key] = data.decode(
+                                    "utf-8", errors="replace"
+                                ).strip()
+                                break
                     except Exception as err:
                         _LOGGER.debug("Cannot read %s: %s", char.uuid, err)
 
@@ -164,9 +155,8 @@ async def async_setup_entry(
     # the printer comes online (detected via BLE advertisement).
     status_data: dict[str, Any] = {}
     entities: list[LetraTagSensorBase] = [
-        LetraTagBatterySensor(entry, address, name, status_data),
-        LetraTagCassetteSensor(entry, address, name, status_data),
         LetraTagStatusSensor(entry, address, name, status_data),
+        LetraTagFirmwareSensor(entry, address, name, status_data),
     ]
     async_add_entities(entities)
 
@@ -255,56 +245,6 @@ class LetraTagSensorBase(SensorEntity):
         return bool(self._status_data)
 
 
-class LetraTagBatterySensor(LetraTagSensorBase):
-    """Battery level sensor."""
-
-    _attr_name = "Battery"
-    _attr_device_class = SensorDeviceClass.BATTERY
-    _attr_native_unit_of_measurement = PERCENTAGE
-    _attr_state_class = SensorStateClass.MEASUREMENT
-
-    @property
-    def unique_id(self) -> str:
-        return f"{self._address}_battery"
-
-    @property
-    def native_value(self) -> int | None:
-        # Try raw battery level from BLE Battery Service (0-100)
-        raw = self._status_data.get("battery_level_raw")
-        if raw is not None:
-            return raw
-        # Fall back to 2-bit level from extended status
-        level = self._status_data.get("battery_level")
-        if level is None:
-            return None
-        return _BATTERY_MAP.get(level)
-
-
-class LetraTagCassetteSensor(LetraTagSensorBase):
-    """Cassette type sensor."""
-
-    _attr_name = "Cassette"
-    _attr_icon = "mdi:label-outline"
-
-    @property
-    def unique_id(self) -> str:
-        return f"{self._address}_cassette"
-
-    @property
-    def native_value(self) -> str | None:
-        # Extended status SKU
-        sku = self._status_data.get("sku")
-        if sku and isinstance(sku, dict):
-            return sku.get("value", "Unknown")
-        # Model from Device Information Service
-        model = self._status_data.get("model")
-        if model:
-            return model
-        if self._status_data.get("online"):
-            return "Unknown"
-        return None
-
-
 class LetraTagStatusSensor(LetraTagSensorBase):
     """Printer status sensor."""
 
@@ -337,10 +277,23 @@ class LetraTagStatusSensor(LetraTagSensorBase):
             "model",
             "serial",
             "firmware",
-            "cutter_status",
-            "main_bay_status",
-            "label_count",
+            "hardware_revision",
         ):
             if k in self._status_data:
                 attrs[k] = self._status_data[k]
         return attrs
+
+
+class LetraTagFirmwareSensor(LetraTagSensorBase):
+    """Firmware version sensor."""
+
+    _attr_name = "Firmware"
+    _attr_icon = "mdi:chip"
+
+    @property
+    def unique_id(self) -> str:
+        return f"{self._address}_firmware"
+
+    @property
+    def native_value(self) -> str | None:
+        return self._status_data.get("firmware")
