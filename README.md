@@ -5,7 +5,7 @@
 <h1 align="center">DYMO LetraTag for Home Assistant</h1>
 
 <p align="center">
-  <a href="https://github.com/homeassistant-letratag"><img src="https://img.shields.io/badge/home%20assistant-2026.2+-blue?style=flat-square&logo=homeassistant" alt="HA 2026.2+"></a>
+  <a href="https://github.com/renaudallard/homeassistant_letratag"><img src="https://img.shields.io/badge/home%20assistant-2026.2+-blue?style=flat-square&logo=homeassistant" alt="HA 2026.2+"></a>
   <a href="#"><img src="https://img.shields.io/badge/bluetooth-BLE-0082FC?style=flat-square&logo=bluetooth" alt="BLE"></a>
   <a href="#"><img src="https://img.shields.io/badge/protocol-reverse--engineered-orange?style=flat-square" alt="Reverse Engineered"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-BSD--2--Clause-green?style=flat-square" alt="BSD 2-Clause License"></a>
@@ -25,8 +25,8 @@
 - **Text label printing** - render and print text directly from service calls
 - **Banner mode** - 90 degree rotated text for vertical/spine labels
 - **Image label printing** - print any image file, auto-scaled to tape size
-- **Native resolution rendering** - TrueType text rendered at 26px, pixel-perfect, no screenshots or line doubling
-- **Live status sensors** - battery, cassette type, and printer state from passive BLE advertisements
+- **Native resolution rendering** - TrueType text rendered at 26px with column doubling for the printer's step rate
+- **Adaptive sensors** - automatically uses whichever data the printer model exposes (advertisement or GATT)
 - **5 built-in fonts** - DejaVu Sans, DejaVu Mono, DejaVu Serif, Liberation Sans, FreeSans (all Bold)
 - **Multi-line support** - split text across lines with `\n`
 - **Custom fonts** - use any TrueType font via path
@@ -58,6 +58,7 @@ Copy `custom_components/letratag/` into your Home Assistant configuration direct
       __init__.py
       config_flow.py
       const.py
+      frontend.py
       manifest.json
       printer.py
       protocol.py
@@ -67,6 +68,8 @@ Copy `custom_components/letratag/` into your Home Assistant configuration direct
       strings.json
       translations/
         en.json
+      www/
+        letratag-card.js
 ```
 
 Restart Home Assistant.
@@ -77,7 +80,7 @@ Restart Home Assistant.
 
 1. Open **HACS > Integrations**
 2. Click the three dots menu (top right) > **Custom repositories**
-3. Enter `https://github.com/renaudallard/homeassistant-letratag` and select category **Integration**
+3. Enter `https://github.com/renaudallard/homeassistant_letratag` and select category **Integration**
 4. Click **Add**, then find **DYMO LetraTag** in the list and click **Download**
 5. Restart Home Assistant
 
@@ -114,26 +117,53 @@ The resource is automatically removed when the last LetraTag config entry is unl
 
 ### Card features
 
-- **Live label preview** - shows a tape-shaped preview that updates as you type
+- **Live label preview** - tape-shaped preview that updates as you type
 - **Text input** - multi-line textarea, Ctrl+Enter to print
 - **Font selector** - 5 built-in fonts optimized for 26px resolution
-- **Size slider** - set explicit pixel size or leave on Auto
+- **Size slider** - 8px to Auto (rightmost = biggest, auto-fills tape height)
 - **Normal / Banner toggle** - switch between horizontal text and 90 degree banner mode
 - **Copies and cut** - set copy count and tape cutting
-- **Sensor display** - shows battery, cassette, and status from discovered sensors
+- **Sensor display** - shows available sensors (unavailable sensors are hidden)
 - **Responsive** - adapts to any column width, stacks controls on narrow screens
 
 ---
 
 ## Sensors
 
-Three sensors are created per printer, updated passively from BLE advertisement data (no active connection needed):
+Four sensors are created per printer. Each sensor only becomes available when its data source provides data, so models that don't expose certain information will simply not show those sensors.
 
-| Sensor | Type | Description |
-|--------|------|-------------|
-| **Battery** | `sensor` | Battery percentage (10/40/70/100%) with `charging`, `battery_low` attributes |
-| **Cassette** | `sensor` | Tape type: Empty, 6mm, 9mm, 12mm, 19mm, 24mm |
-| **Status** | `sensor` | Printer state: Ready, Busy, Tape jam, Cutter jam, Battery too low |
+| Sensor | Data source | Description |
+|--------|-------------|-------------|
+| **Status** | GATT status command / advertisement flags | Printer state: Ready, Busy, Tape jam, Cutter jam, Battery too low. Attributes include manufacturer, model, serial, firmware, hardware revision. |
+| **Firmware** | GATT Device Information Service (0x2A26) | Firmware version string (e.g. `RUTEP20220628`) |
+| **Battery** | Advertisement manufacturer data / extended GATT status | Battery percentage. Only available on models that broadcast battery level. |
+| **Cassette** | Advertisement manufacturer data / extended GATT status | Tape type: Empty, 6mm, 9mm, 12mm, 19mm, 24mm. Only available on models that report cassette type. |
+
+### How sensor updates work
+
+The printer auto-shuts down after approximately 5 minutes. Sensors are updated by watching for BLE advertisements:
+
+1. **Printer powers on** - BLE advertisement detected
+2. **Advertisement data** - if the model broadcasts manufacturer data (battery, cassette, errors), sensors update immediately from the advertisement
+3. **GATT connection** - the integration connects once to read device info (model, firmware, serial) and the status command reply
+4. **Printer shuts down** - sensors become unavailable
+5. **Next power-on** - cycle repeats
+
+### Confirmed LT200B data
+
+The LT200B (firmware RUTEP20220628, REV-E) exposes:
+
+| Characteristic | Value |
+|---------------|-------|
+| Manufacturer | Newell |
+| Model | LT200B |
+| Firmware | RUTEP20220628 |
+| Hardware | REV-E |
+| Status | ESC R reply (3 bytes) |
+| Battery | Not available |
+| Cassette | Not available |
+
+Other models or firmware versions may expose additional data.
 
 ---
 
@@ -141,7 +171,7 @@ Three sensors are created per printer, updated passively from BLE advertisement 
 
 ### `letratag.print_label`
 
-Print a text label. Font size is auto-calculated to fill the tape height, or can be set explicitly.
+Print a text label. Font size is auto-calculated to fill the tape height, or can be set explicitly (minimum 8px).
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|:--------:|---------|-------------|
@@ -149,8 +179,8 @@ Print a text label. Font size is auto-calculated to fill the tape height, or can
 | `copies` | int | no | `1` | Number of copies (1 - 255) |
 | `cut` | bool | no | `true` | Cut tape after printing |
 | `font_name` | string | no | | One of the 5 built-in fonts (see below) |
-| `font_size` | int | no | auto | Font size in pixels (6 - 52) |
-| `font_path` | string | no | | Path to a custom `.ttf` file (overrides `font_name`) |
+| `font_size` | int | no | auto | Font size in pixels (8 - 52) |
+| `font_path` | string | no | | Path to a custom `.ttf` file (used when `font_name` is not set) |
 | `rotate` | bool | no | `false` | Banner mode: rotate text 90 degrees |
 
 ```yaml
@@ -179,7 +209,7 @@ data:
 
 ### `letratag.print_image`
 
-Print an image file. The image is automatically resized to the tape height and converted to 1-bit monochrome.
+Print an image file. The image is automatically resized to the tape height and converted to 1-bit monochrome. Image path must be under the Home Assistant configuration directory.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|:--------:|---------|-------------|
@@ -198,7 +228,7 @@ data:
 
 ## Text Rendering
 
-Text is rendered directly at the printer's native resolution using Pillow TrueType font rendering. No screenshots, no bitmap scaling, no line doubling.
+Text is rendered directly at the printer's native resolution (26 pixels for 12mm tape) using Pillow TrueType font rendering. Each pixel column is doubled to match the printer's stepper motor cadence. No screenshots, no bitmap scaling.
 
 **Built-in fonts** (selected for clarity at 26px):
 
@@ -225,7 +255,7 @@ When `rotate` is `true`, each character is rendered at full tape width and place
 
 ## BLE Protocol Reference
 
-Protocol reverse-engineered from the DYMO LetraTag Connect 2.1.0 APK.
+Protocol reverse-engineered from the DYMO LetraTag Connect 2.1.0 APK (Genie variant).
 
 ### UUIDs
 
@@ -235,6 +265,8 @@ Protocol reverse-engineered from the DYMO LetraTag Connect 2.1.0 APK.
 | Write (print request) | `be3dd651-2b3d-42f1-99c1-f0f749dd0678` |
 | Notify (print reply) | `be3dd652-2b3d-42f1-99c1-f0f749dd0678` |
 | Short command | `be3dd653-2b3d-42f1-99c1-f0f749dd0678` |
+
+The printer also exposes the standard Device Information Service (`0x180A`).
 
 ### Commands
 
@@ -246,16 +278,16 @@ All commands are prefixed with `ESC` (`0x1B`):
 | MediaType | `M` | 6 | Set cassette type |
 | PrintDensity | `C` | - | Set print density |
 | PrintData | `D` | 12+N | Raster data: bpp, alignment, width(4), height(4), pixels(N) |
-| FormFeed | `E` | 2 | Form feed |
+| FormFeed | `E` | 2 | Form feed (used by Genie variant after print data) |
 | Status | `A` | 2 | Request printer status |
 | Copies | `#` | 3 | Set number of copies |
-| Cut | `p` | 3 | Cut tape (`0x30`) or skip (`0x31`) |
+| Cut | `p` | 3 | Cut tape (`0x30`) or skip (`0x31`), used by Avatar variant |
 | EndJob | `Q` | 2 | End print job |
 
 ### Print Sequence
 
 ```
-StartJob -> Copies -> PrintData -> Cut -> Status -> EndJob
+StartJob -> Copies -> PrintData -> FormFeed -> Status -> EndJob
 ```
 
 ### Communication Framing
@@ -278,10 +310,13 @@ Commands are concatenated into a body, then wrapped:
 
 - 1 bit per pixel (`bpp = 0x81`), monochrome
 - Image is stored column-by-column (each rasterline = one vertical column)
-- 26 pixels per column for 12mm tape, packed into 4 bytes (32 bits)
-- Byte order within each column is reversed in 8-bit groups before packing
+- 26 pixels per column for 12mm tape, padded to 32 elements (4 bytes)
+- Columns are byte-reversed in 8-bit groups (swapBits) then packed MSB-first
+- Each column is doubled (enlarge) to match the printer's stepper motor cadence
 
 ### Manufacturer Data (Advertisement)
+
+Available on some models. Not broadcast by LT200B REV-E.
 
 | Byte | Bits | Field |
 |:----:|------|-------|
