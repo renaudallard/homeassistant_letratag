@@ -25,8 +25,7 @@
 """DYMO LetraTag BLE printer client.
 
 Handles the BLE connection lifecycle and data transmission to the
-printer using bleak. Designed for use within Home Assistant but has
-no direct HA dependencies beyond the BLE device handle.
+printer using bleak via HA's bluetooth integration.
 """
 
 from __future__ import annotations
@@ -60,8 +59,8 @@ from .protocol import (
 
 _LOGGER = logging.getLogger(__name__)
 
-# Desired MTU for large chunk writes (app uses autoMaxMTU)
-_DESIRED_MTU = 512
+# Maximum retries for transient BLE write failures
+_WRITE_RETRIES = 2
 
 
 class PrintError(Exception):
@@ -79,42 +78,42 @@ class LetraTagPrinter:
         self._notify_uuid = ble_uuid(PRINT_REPLY_UUID, device_uuid)
         self._print_lock = asyncio.Lock()
 
-    async def _request_mtu(self, client: BleakClient) -> int:
-        """Request a larger MTU for bulk data transfer.
+    async def _write_char(self, client: BleakClient, data: bytes | bytearray) -> None:
+        """Write to the print request characteristic with retry.
 
-        The DYMO app uses autoMaxMTU=true which negotiates the maximum.
-        Returns the negotiated MTU size.
+        Uses write-with-response (the Android app's default via
+        BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT). BlueZ
+        handles ATT segmentation for payloads exceeding the MTU.
         """
-        try:
-            mtu = client.mtu_size
-            _LOGGER.debug("Initial MTU: %d", mtu)
-            if mtu < _DESIRED_MTU:
-                # On BlueZ, requesting MTU is done via the backend
-                backend = getattr(client, "_backend", None)
-                if backend and hasattr(backend, "_acquire_mtu"):
-                    mtu = await backend._acquire_mtu()
-                    _LOGGER.debug("Negotiated MTU: %d", mtu)
-                elif backend and hasattr(backend, "request_mtu"):
-                    mtu = await backend.request_mtu(_DESIRED_MTU)
-                    _LOGGER.debug("Requested MTU: %d", mtu)
-            return mtu
-        except Exception as err:
-            _LOGGER.debug("MTU negotiation failed: %s", err)
-            return client.mtu_size
+        last_err: Exception | None = None
+        for attempt in range(_WRITE_RETRIES + 1):
+            try:
+                await client.write_gatt_char(self._write_uuid, data, response=True)
+                return
+            except (BleakError, EOFError, TimeoutError) as err:
+                last_err = err
+                if attempt < _WRITE_RETRIES:
+                    _LOGGER.debug(
+                        "Write failed (attempt %d/%d): %s",
+                        attempt + 1,
+                        _WRITE_RETRIES + 1,
+                        err,
+                    )
+                    await asyncio.sleep(0.1)
+        raise last_err  # type: ignore[misc]
 
     async def _write_stream(self, client: BleakClient, stream: ProtocolStream) -> None:
-        """Write a protocol stream to the printer.
-
-        Header is written with response (reliable delivery).
-        Body chunks use write-without-response for throughput,
-        matching the app's bulk transfer behavior.
-        """
-        # Write header with response
-        await client.write_gatt_char(self._write_uuid, stream.header, response=True)
-
-        # Write body chunks without response for speed
-        for chunk in stream.body_chunks:
-            await client.write_gatt_char(self._write_uuid, chunk, response=False)
+        """Write a protocol stream to the printer."""
+        _LOGGER.debug(
+            "Sending: header=%d bytes, %d chunks",
+            len(stream.header),
+            len(stream.body_chunks),
+        )
+        await self._write_char(client, stream.header)
+        for i, chunk in enumerate(stream.body_chunks):
+            await self._write_char(client, chunk)
+            if (i + 1) % 10 == 0:
+                _LOGGER.debug("Sent chunk %d/%d", i + 1, len(stream.body_chunks))
 
     async def print_image(
         self,
@@ -140,6 +139,7 @@ class LetraTagPrinter:
         from .render import prepare_print_data
 
         width, print_data = prepare_print_data(img, LABEL_HEIGHT)
+        _LOGGER.debug("Print data: %d rasterlines, %d bytes", width, len(print_data))
 
         stream = build_print_stream(
             print_data=print_data,
@@ -156,11 +156,7 @@ class LetraTagPrinter:
         stream: ProtocolStream,
         ble_device: Any | None = None,
     ) -> str:
-        """Connect, send a protocol stream, wait for response, disconnect.
-
-        Uses a lock to prevent concurrent print jobs from corrupting
-        shared notification state.
-        """
+        """Connect, send a protocol stream, wait for response, disconnect."""
         async with self._print_lock:
             response_event = asyncio.Event()
             last_response: list[int | None] = [None]
@@ -175,12 +171,22 @@ class LetraTagPrinter:
             target = ble_device if ble_device is not None else self.address
 
             try:
+                _LOGGER.debug("Connecting to %s", self.address)
                 async with BleakClient(target, timeout=CONNECT_TIMEOUT) as client:
-                    _LOGGER.debug("Connected to %s", self.address)
+                    _LOGGER.debug(
+                        "Connected, MTU=%d, services=%d",
+                        client.mtu_size,
+                        len(client.services),
+                    )
 
-                    # Negotiate max MTU for 500-byte chunks
-                    mtu = await self._request_mtu(client)
-                    _LOGGER.debug("Using MTU: %d", mtu)
+                    # List available characteristics for debugging
+                    for service in client.services:
+                        for char in service.characteristics:
+                            _LOGGER.debug(
+                                "  Characteristic %s: %s",
+                                char.uuid,
+                                char.properties,
+                            )
 
                     await client.start_notify(self._notify_uuid, _notification_handler)
 
@@ -194,8 +200,14 @@ class LetraTagPrinter:
 
                     await client.stop_notify(self._notify_uuid)
 
+            except PrintError:
+                raise
             except BleakError as err:
+                _LOGGER.error("BLE error: %s", err, exc_info=True)
                 raise PrintError(f"BLE error: {err}") from err
+            except Exception as err:
+                _LOGGER.error("Unexpected error: %s", err, exc_info=True)
+                raise PrintError(f"Error: {err}") from err
 
         code = last_response[0]
         if code is None:
