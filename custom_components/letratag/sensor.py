@@ -71,7 +71,12 @@ _STATUS_CMD = bytes([0x1B, 0x41, 0x00])
 
 
 async def _read_printer_status(hass: HomeAssistant, address: str) -> dict[str, Any]:
-    """Connect to the printer and read status via GATT."""
+    """Connect to the printer and read all available data via GATT.
+
+    Enumerates all readable characteristics to discover battery,
+    device info, and cassette data. Also sends the ESC-A status
+    command for the short status reply.
+    """
     write_uuid = ble_uuid(PRINT_REQUEST_UUID)
     reply_uuid = ble_uuid(PRINT_REPLY_UUID)
 
@@ -81,23 +86,69 @@ async def _read_printer_status(hass: HomeAssistant, address: str) -> dict[str, A
     if ble_device is None:
         return {}
 
+    result: dict[str, Any] = {}
+
     try:
         async with BleakClient(ble_device, timeout=CONNECT_TIMEOUT) as client:
-            await client.write_gatt_char(write_uuid, _STATUS_CMD, response=True)
-            data = await client.read_gatt_char(reply_uuid)
-            _LOGGER.debug(
-                "Status from %s: %s (len=%d)",
-                address,
-                data.hex() if data else "None",
-                len(data) if data else 0,
-            )
-            if data and len(data) >= 32:
-                return parse_status_info(data)
-            _LOGGER.debug("Status response too short")
-            return {}
+            # Read all readable characteristics
+            for service in client.services:
+                for char in service.characteristics:
+                    if "read" not in char.properties:
+                        continue
+                    try:
+                        data = await client.read_gatt_char(char.uuid)
+                        _LOGGER.debug(
+                            "GATT %s/%s: %s",
+                            service.uuid,
+                            char.uuid,
+                            data.hex() if data else "empty",
+                        )
+                        # Standard BLE characteristics
+                        if "00002a19" in char.uuid:
+                            result["battery_level_raw"] = data[0]
+                        elif "00002a29" in char.uuid:
+                            result["manufacturer"] = data.decode(
+                                "utf-8", errors="replace"
+                            ).strip()
+                        elif "00002a24" in char.uuid:
+                            result["model"] = data.decode(
+                                "utf-8", errors="replace"
+                            ).strip()
+                        elif "00002a25" in char.uuid:
+                            result["serial"] = data.decode(
+                                "utf-8", errors="replace"
+                            ).strip()
+                        elif "00002a26" in char.uuid:
+                            result["firmware"] = data.decode(
+                                "utf-8", errors="replace"
+                            ).strip()
+                    except Exception as err:
+                        _LOGGER.debug("Cannot read %s: %s", char.uuid, err)
+
+            # Send status request and read reply
+            try:
+                await client.write_gatt_char(write_uuid, _STATUS_CMD, response=True)
+                reply = await client.read_gatt_char(reply_uuid)
+                _LOGGER.debug(
+                    "Status reply: %s (len=%d)",
+                    reply.hex() if reply else "None",
+                    len(reply) if reply else 0,
+                )
+                if reply and len(reply) >= 3:
+                    result["status_code"] = reply[2]
+                if reply and len(reply) >= 32:
+                    result.update(parse_status_info(reply))
+            except Exception as err:
+                _LOGGER.debug("Status request failed: %s", err)
+
+            result["online"] = True
+            _LOGGER.debug("Printer data: %s", result)
+
     except (BleakError, TimeoutError, OSError) as err:
-        _LOGGER.debug("Status read failed: %s", err)
+        _LOGGER.debug("Connection failed: %s", err)
         return {}
+
+    return result
 
 
 async def async_setup_entry(
@@ -218,6 +269,11 @@ class LetraTagBatterySensor(LetraTagSensorBase):
 
     @property
     def native_value(self) -> int | None:
+        # Try raw battery level from BLE Battery Service (0-100)
+        raw = self._status_data.get("battery_level_raw")
+        if raw is not None:
+            return raw
+        # Fall back to 2-bit level from extended status
         level = self._status_data.get("battery_level")
         if level is None:
             return None
@@ -236,9 +292,16 @@ class LetraTagCassetteSensor(LetraTagSensorBase):
 
     @property
     def native_value(self) -> str | None:
+        # Extended status SKU
         sku = self._status_data.get("sku")
         if sku and isinstance(sku, dict):
             return sku.get("value", "Unknown")
+        # Model from Device Information Service
+        model = self._status_data.get("model")
+        if model:
+            return model
+        if self._status_data.get("online"):
+            return "Unknown"
         return None
 
 
@@ -259,20 +322,25 @@ class LetraTagStatusSensor(LetraTagSensorBase):
         error = self._status_data.get("error")
         if error and isinstance(error, dict) and error.get("key", 0) != 0:
             return error.get("value", "Error")
+        code = self._status_data.get("status_code")
+        if code is not None and code != 0:
+            return f"Status {code}"
         return "Ready"
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         if not self._status_data:
             return {}
-        return {
-            k: v
-            for k, v in self._status_data.items()
-            if k
-            in (
-                "cutter_status",
-                "main_bay_status",
-                "label_count",
-                "eps_charging",
-            )
-        }
+        attrs = {}
+        for k in (
+            "manufacturer",
+            "model",
+            "serial",
+            "firmware",
+            "cutter_status",
+            "main_bay_status",
+            "label_count",
+        ):
+            if k in self._status_data:
+                attrs[k] = self._status_data[k]
+        return attrs
