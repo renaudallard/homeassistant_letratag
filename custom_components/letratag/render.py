@@ -414,8 +414,19 @@ def prepare_print_data(
         and print_data is the packed byte data.
     """
     rasterlines = image_to_rasterlines(img, label_height)
+
+    # Pad each column to 32 elements (4 full bytes) before swapBits.
+    # The printer expects 32-bit columns (height=32 in protocol).
+    # Without padding, the short last chunk (2 bits) causes misaligned
+    # byte groups after swapBits.
+    padded_height = ((label_height + 7) // 8) * 8
+    for i, col in enumerate(rasterlines):
+        if len(col) < padded_height:
+            rasterlines[i] = col + [0] * (padded_height - len(col))
+
+    rasterlines = swap_bits(rasterlines)
     rasterlines = enlarge(rasterlines)
-    rasterlines = adjust_padding(rasterlines, label_height, min_raster_length)
+    rasterlines = adjust_padding(rasterlines, padded_height, min_raster_length)
 
     if max_width and len(rasterlines) > max_width:
         rasterlines = rasterlines[:max_width]
