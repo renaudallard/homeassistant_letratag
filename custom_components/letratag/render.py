@@ -414,7 +414,6 @@ def prepare_print_data(
         and print_data is the packed byte data.
     """
     rasterlines = image_to_rasterlines(img, label_height)
-    rasterlines = swap_bits(rasterlines)
     rasterlines = enlarge(rasterlines)
     rasterlines = adjust_padding(rasterlines, label_height, min_raster_length)
 
