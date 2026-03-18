@@ -102,6 +102,10 @@ The integration auto-discovers nearby LetraTag printers via BLE.
 
 A custom card is included for printing labels directly from the UI.
 
+<p align="center">
+  <img src="screenshot.png" width="400" alt="LetraTag Lovelace card">
+</p>
+
 ### Adding the card
 
 The card JS is automatically registered as a Lovelace resource when the integration loads (served securely via `StaticPathConfig` and auto-added to the resource collection). No manual resource configuration needed.
