@@ -351,6 +351,14 @@ Available on some models. Not broadcast by LT200B REV-E.
 
 ---
 
+## Support
+
+If you find this integration useful, you can buy me a coffee:
+
+[![PayPal](https://img.shields.io/badge/PayPal-Donate-blue?style=flat-square&logo=paypal)](https://www.paypal.me/RenaudAllard)
+
+---
+
 ## License
 
 BSD 2-Clause. See [LICENSE](LICENSE).
