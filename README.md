@@ -76,13 +76,11 @@ Restart Home Assistant.
 
 ### HACS
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=flat-square)](https://hacs.xyz)
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=renaudallard&repository=homeassistant_letratag&category=integration)
 
-1. Open **HACS > Integrations**
-2. Click the three dots menu (top right) > **Custom repositories**
-3. Enter `https://github.com/renaudallard/homeassistant_letratag` and select category **Integration**
-4. Click **Add**, then find **DYMO LetraTag** in the list and click **Download**
-5. Restart Home Assistant
+1. Click the button above (or open **HACS > Integrations**, three dots menu > **Custom repositories**, and enter `https://github.com/renaudallard/homeassistant_letratag` with category **Integration**)
+2. Find **DYMO LetraTag** in the list and click **Download**
+3. Restart Home Assistant
 
 ---
 
