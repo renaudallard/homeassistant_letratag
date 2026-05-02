@@ -130,10 +130,6 @@ ADV_CUTTER_JAM = 0x02
 ADV_TAPE_JAM = 0x01
 ADV_BATTERY_LOW = 0x08
 
-# Connection parameters
-CONNECT_TIMEOUT = 15.0
-DISCONNECT_TIMEOUT = 5.0
-
 # Service names
 SERVICE_PRINT_LABEL = "print_label"
 SERVICE_PRINT_IMAGE = "print_image"

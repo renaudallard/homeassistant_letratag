@@ -33,6 +33,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from bleak.backends.device import BLEDevice
 from PIL import Image
 import voluptuous as vol
 
@@ -84,7 +85,7 @@ PRINT_IMAGE_SCHEMA = vol.Schema(
 )
 
 
-def _get_printer(hass: HomeAssistant) -> tuple[LetraTagPrinter, object | None]:
+def _get_printer(hass: HomeAssistant) -> tuple[LetraTagPrinter, BLEDevice]:
     """Get the first configured printer and its BLE device."""
     domain_data = hass.data.get(DOMAIN, {})
 
@@ -103,6 +104,10 @@ def _get_printer(hass: HomeAssistant) -> tuple[LetraTagPrinter, object | None]:
     ble_device = bluetooth.async_ble_device_from_address(
         hass, address, connectable=True
     )
+    if ble_device is None:
+        raise HomeAssistantError(
+            f"Printer {address} is not advertising — out of range or powered off"
+        )
     return printer, ble_device
 
 

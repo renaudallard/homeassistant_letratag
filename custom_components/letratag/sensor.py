@@ -41,6 +41,7 @@ from typing import Any
 
 from bleak import BleakClient
 from bleak.exc import BleakError
+from bleak_retry_connector import establish_connection
 
 from homeassistant.components import bluetooth
 from homeassistant.components.bluetooth import (
@@ -61,7 +62,6 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
-    CONNECT_TIMEOUT,
     DOMAIN,
     PRINT_REPLY_UUID,
     PRINT_REQUEST_UUID,
@@ -101,45 +101,48 @@ async def _read_gatt_status(hass: HomeAssistant, address: str) -> dict[str, Any]
         return {}
 
     result: dict[str, Any] = {}
+    client: BleakClient | None = None
 
     try:
-        async with BleakClient(ble_device, timeout=CONNECT_TIMEOUT) as client:
-            # Read Device Information Service characteristics
-            for service in client.services:
-                for char in service.characteristics:
-                    if "read" not in char.properties:
-                        continue
-                    for uuid_frag, key in _DIS_CHARS.items():
-                        if uuid_frag in char.uuid:
-                            try:
-                                data = await client.read_gatt_char(char.uuid)
-                                result[key] = data.decode(
-                                    "utf-8", errors="replace"
-                                ).strip()
-                            except Exception as err:
-                                _LOGGER.debug(
-                                    "Cannot read %s: %s",
-                                    char.uuid,
-                                    err,
-                                )
-                            break
+        client = await establish_connection(BleakClient, ble_device, address)
 
-            # Send status request and read reply
-            try:
-                await client.write_gatt_char(write_uuid, _STATUS_CMD, response=True)
-                reply = await client.read_gatt_char(reply_uuid)
-                if reply and len(reply) >= 3:
-                    result["status_code"] = reply[2]
-                if reply and len(reply) >= 32:
-                    result.update(parse_status_info(reply))
-            except Exception as err:
-                _LOGGER.debug("Status request failed: %s", err)
+        # Read Device Information Service characteristics
+        for service in client.services:
+            for char in service.characteristics:
+                if "read" not in char.properties:
+                    continue
+                for uuid_frag, key in _DIS_CHARS.items():
+                    if uuid_frag in char.uuid:
+                        try:
+                            data = await client.read_gatt_char(char.uuid)
+                            result[key] = data.decode("utf-8", errors="replace").strip()
+                        except Exception as err:
+                            _LOGGER.debug(
+                                "Cannot read %s: %s",
+                                char.uuid,
+                                err,
+                            )
+                        break
 
-            result["online"] = True
+        # Send status request and read reply
+        try:
+            await client.write_gatt_char(write_uuid, _STATUS_CMD, response=True)
+            reply = await client.read_gatt_char(reply_uuid)
+            if reply and len(reply) >= 3:
+                result["status_code"] = reply[2]
+            if reply and len(reply) >= 32:
+                result.update(parse_status_info(reply))
+        except Exception as err:
+            _LOGGER.debug("Status request failed: %s", err)
+
+        result["online"] = True
 
     except (BleakError, TimeoutError, OSError) as err:
         _LOGGER.debug("GATT connection failed: %s", err)
         return {}
+    finally:
+        if client is not None and client.is_connected:
+            await client.disconnect()
 
     return result
 

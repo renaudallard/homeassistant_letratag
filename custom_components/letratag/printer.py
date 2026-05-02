@@ -35,10 +35,11 @@ import logging
 from typing import Any
 
 from bleak import BleakClient
+from bleak.backends.device import BLEDevice
 from bleak.exc import BleakError
+from bleak_retry_connector import establish_connection
 
 from .const import (
-    CONNECT_TIMEOUT,
     LABEL_HEIGHT,
     LABEL_HEIGHT_PADDED,
     RESPONSE_MESSAGES,
@@ -118,17 +119,17 @@ class LetraTagPrinter:
     async def print_image(
         self,
         img: Any,
+        ble_device: BLEDevice,
         copies: int = 1,
         cut: bool = True,
-        ble_device: Any | None = None,
     ) -> str:
         """Print a PIL Image.
 
         Args:
             img: PIL Image object.
+            ble_device: BLEDevice from HA bluetooth.
             copies: Number of copies (1-255).
             cut: Whether to cut the tape after printing.
-            ble_device: Optional BleakDevice from HA bluetooth.
 
         Returns:
             Status message string.
@@ -154,7 +155,7 @@ class LetraTagPrinter:
     async def _send_stream(
         self,
         stream: ProtocolStream,
-        ble_device: Any | None = None,
+        ble_device: BLEDevice,
     ) -> str:
         """Connect, send a protocol stream, wait for response, disconnect."""
         async with self._print_lock:
@@ -168,32 +169,35 @@ class LetraTagPrinter:
                 msg = RESPONSE_MESSAGES.get(code, f"Unknown ({code})")
                 _LOGGER.debug("Printer notification: %s (code=%d)", msg, code)
 
-            target = ble_device if ble_device is not None else self.address
-
+            client: BleakClient | None = None
             try:
                 _LOGGER.debug("Connecting to %s", self.address)
-                async with BleakClient(target, timeout=CONNECT_TIMEOUT) as client:
-                    _LOGGER.debug("Connected, MTU=%d", client.mtu_size)
+                client = await establish_connection(
+                    BleakClient,
+                    ble_device,
+                    self.address,
+                )
+                _LOGGER.debug("Connected, MTU=%d", client.mtu_size)
 
-                    for service in client.services:
-                        for char in service.characteristics:
-                            _LOGGER.debug(
-                                "  %s: %s",
-                                char.uuid,
-                                char.properties,
-                            )
+                for service in client.services:
+                    for char in service.characteristics:
+                        _LOGGER.debug(
+                            "  %s: %s",
+                            char.uuid,
+                            char.properties,
+                        )
 
-                    await client.start_notify(self._notify_uuid, _notification_handler)
+                await client.start_notify(self._notify_uuid, _notification_handler)
 
-                    await self._write_stream(client, stream)
-                    _LOGGER.debug("Print data sent, waiting for response")
+                await self._write_stream(client, stream)
+                _LOGGER.debug("Print data sent, waiting for response")
 
-                    try:
-                        await asyncio.wait_for(response_event.wait(), timeout=30.0)
-                    except asyncio.TimeoutError:
-                        raise PrintError("Printer response timeout")
+                try:
+                    await asyncio.wait_for(response_event.wait(), timeout=30.0)
+                except asyncio.TimeoutError:
+                    raise PrintError("Printer response timeout")
 
-                    await client.stop_notify(self._notify_uuid)
+                await client.stop_notify(self._notify_uuid)
 
             except PrintError:
                 raise
@@ -203,6 +207,9 @@ class LetraTagPrinter:
             except Exception as err:
                 _LOGGER.error("Unexpected error: %s", err, exc_info=True)
                 raise PrintError(f"Error: {err}") from err
+            finally:
+                if client is not None and client.is_connected:
+                    await client.disconnect()
 
         code = last_response[0]
         if code is None:
@@ -216,18 +223,24 @@ class LetraTagPrinter:
 
         raise PrintError(msg)
 
-    async def request_status(self, ble_device: Any | None = None) -> dict:
+    async def request_status(self, ble_device: BLEDevice) -> dict:
         """Send a status request and return parsed manufacturer data."""
-        target = ble_device if ble_device is not None else self.address
-
+        client: BleakClient | None = None
         try:
-            async with BleakClient(target, timeout=CONNECT_TIMEOUT) as client:
-                await client.write_gatt_char(self._write_uuid, build_status_direct())
-                data = await client.read_gatt_char(self._notify_uuid)
-                return parse_manufacturer_data(data)
+            client = await establish_connection(
+                BleakClient,
+                ble_device,
+                self.address,
+            )
+            await client.write_gatt_char(self._write_uuid, build_status_direct())
+            data = await client.read_gatt_char(self._notify_uuid)
+            return parse_manufacturer_data(data)
         except BleakError as err:
             _LOGGER.error("Status request failed: %s", err)
             return {}
+        finally:
+            if client is not None and client.is_connected:
+                await client.disconnect()
 
     @staticmethod
     def parse_advertisement(
