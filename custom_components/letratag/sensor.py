@@ -367,7 +367,7 @@ class LetraTagStatusSensor(LetraTagSensorBase):
     def extra_state_attributes(self) -> dict[str, Any]:
         if not self._status_data:
             return {}
-        attrs = {}
+        attrs: dict[str, Any] = {}
         for k in (
             "manufacturer",
             "model",
