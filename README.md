@@ -102,6 +102,7 @@ A custom card is included for printing labels directly from the UI.
 
 <p align="center">
   <img src="screenshot.png" width="400" alt="LetraTag Lovelace card">
+  <img src="preview.png" width="400" alt="LetraTag Lovelace card preview">
 </p>
 
 ### Adding the card
