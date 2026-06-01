@@ -25,7 +25,7 @@
 """Text and image rendering for DYMO LetraTag labels.
 
 Renders text directly to 1-bit raster data at the printer's native
-resolution (26px height for 12mm tape) using Pillow TrueType rendering.
+resolution (32px height for 12mm tape) using Pillow TrueType rendering.
 No screenshots, no line doubling: direct pixel-perfect output.
 
 Raster format:
@@ -149,7 +149,7 @@ def render_text(
 
     Args:
         text: Text to render. Newlines split into multiple lines.
-        label_height: Pixel height of the label (26 for 12mm tape).
+        label_height: Pixel height of the label (32 for 12mm tape).
         font_path: Optional path to a .ttf font file.
         font_size: Optional font size in pixels. Auto-calculated if None.
         max_width: Optional maximum width in pixels.
@@ -217,7 +217,7 @@ def render_text_banner(
 
     Args:
         text: Text to render.
-        label_height: Tape width in pixels (26 for 12mm).
+        label_height: Tape width in pixels (32 for 12mm).
         font_path: Optional path to a .ttf font file.
         font_size: Explicit font size. Auto-sized to fill tape width if None.
         spacing: Pixels of gap between characters.

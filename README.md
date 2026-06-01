@@ -25,9 +25,9 @@
 - **Text label printing** - render and print text directly from service calls
 - **Banner mode** - 90 degree rotated text for vertical/spine labels
 - **Image label printing** - print any image file, auto-scaled to tape size
-- **Native resolution rendering** - TrueType text rendered at 26px with column doubling for the printer's step rate
+- **Native resolution rendering** - TrueType text rendered at 32px with column doubling for the printer's step rate
 - **Adaptive sensors** - automatically uses whichever data the printer model exposes (advertisement or GATT)
-- **21 built-in fonts** - sans, serif, monospace, condensed and display faces, all tuned for the 26px tape (see the Text Rendering section)
+- **21 built-in fonts** - sans, serif, monospace, condensed and display faces, all tuned for the 32px tape (see the Text Rendering section)
 - **Multi-line support** - split text across lines with `\n`
 - **Custom fonts** - use any TrueType font via path
 
@@ -124,7 +124,7 @@ The resource is automatically removed when the last LetraTag config entry is unl
 
 - **Live label preview** - tape-shaped preview that updates as you type
 - **Text input** - multi-line textarea, Ctrl+Enter to print
-- **Font selector** - 21 built-in fonts optimized for 26px resolution
+- **Font selector** - 21 built-in fonts optimized for 32px resolution
 - **Size slider** - 8px to Auto (rightmost = biggest, auto-fills tape height)
 - **Normal / Banner toggle** - switch between horizontal text and 90 degree banner mode
 - **Copies and cut** - set copy count and tape cutting
@@ -184,7 +184,7 @@ Print a text label. Font size is auto-calculated to fill the tape height, or can
 | `copies` | int | no | `1` | Number of copies (1 - 255) |
 | `cut` | bool | no | `true` | Cut tape after printing |
 | `font_name` | string | no | | One of the 5 built-in fonts (see below) |
-| `font_size` | int | no | auto | Font size in pixels (8 - 52) |
+| `font_size` | int | no | auto | Font size in pixels (8 - 64) |
 | `font_path` | string | no | | Path to a custom `.ttf` file (used when `font_name` is not set) |
 | `rotate` | bool | no | `false` | Banner mode: rotate text 90 degrees |
 
@@ -233,9 +233,9 @@ data:
 
 ## Text Rendering
 
-Text is rendered directly at the printer's native resolution (26 pixels for 12mm tape) using Pillow TrueType font rendering. Each pixel column is doubled to match the printer's stepper motor cadence. No screenshots, no bitmap scaling.
+Text is rendered directly at the printer's native resolution (32 pixels for 12mm tape) using Pillow TrueType font rendering. Each pixel column is doubled to match the printer's stepper motor cadence. No screenshots, no bitmap scaling.
 
-**Built-in fonts** (selected for clarity at 26px):
+**Built-in fonts** (selected for clarity at 32px):
 
 | Name | Style | Best for |
 |------|-------|----------|
@@ -246,7 +246,7 @@ Text is rendered directly at the printer's native resolution (26 pixels for 12mm
 | Noto Sans Bold | Sans-serif | Highly legible, wide language support |
 | Open Sans Bold | Sans-serif | Humanist, clear at small sizes |
 | Source Sans 3 Bold | Sans-serif | Crisp UI sans |
-| Inter Bold | Sans-serif | Tall x-height, sharp at 26px |
+| Inter Bold | Sans-serif | Tall x-height, sharp at 32px |
 | Fira Sans Bold | Sans-serif | Friendly, very readable |
 | Oswald Bold | Condensed sans | Fits more text on the tape |
 | Archivo Narrow Bold | Condensed sans | Long labels |
@@ -335,7 +335,7 @@ Commands are concatenated into a body, then wrapped:
 
 - 1 bit per pixel (`bpp = 0x81`), monochrome
 - Image is stored column-by-column (each rasterline = one vertical column)
-- 26 pixels per column for 12mm tape, padded to 32 elements (4 bytes)
+- 32 pixels per column for 12mm tape (4 bytes per column)
 - Columns are byte-reversed in 8-bit groups (swapBits) then packed MSB-first
 - Each column is doubled (enlarge) to match the printer's stepper motor cadence
 

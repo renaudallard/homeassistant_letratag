@@ -96,8 +96,8 @@ class LetraTagCard extends HTMLElement {
 
     const sizeVal = this._state.fontSize;
     if (sizeVal > 0) {
-      // Scale preview font: printer is 26px tall, preview box is ~48px
-      const scale = 48 / 26;
+      // Scale preview font: printer is 32px tall, preview box is ~48px
+      const scale = 48 / 32;
       previewText.style.fontSize = `${Math.round(sizeVal * scale)}px`;
     } else {
       previewText.style.fontSize = "";
@@ -601,7 +601,7 @@ class LetraTagCard extends HTMLElement {
             <div class="field" style="grid-column: 1 / -1">
               <label>Size <span id="size-label">(auto)</span></label>
               <div class="size-row">
-                <input type="range" id="size-slider" min="8" max="27" value="27" step="1">
+                <input type="range" id="size-slider" min="8" max="33" value="33" step="1">
                 <span id="size-value" class="size-value">Auto</span>
               </div>
             </div>
@@ -646,7 +646,7 @@ class LetraTagCard extends HTMLElement {
       this._updateState("fontName", e.target.value);
     });
 
-    // Size slider: 8..26 explicit, rightmost position = auto (biggest)
+    // Size slider: 8..32 explicit, rightmost position = auto (biggest)
     $("size-slider").addEventListener("input", (e) => {
       const raw = parseInt(e.target.value, 10);
       const max = parseInt(e.target.max, 10);
@@ -668,7 +668,7 @@ class LetraTagCard extends HTMLElement {
 
         // Adjust size slider max for banner mode (last position = auto)
         const slider = $("size-slider");
-        slider.max = isRotate ? "53" : "27";
+        slider.max = isRotate ? "65" : "33";
         slider.value = slider.max;
         this._state.fontSize = 0;
         $("size-value").textContent = "Auto";

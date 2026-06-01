@@ -8,7 +8,7 @@ Fonts that upstream distributes as variable fonts were instanced to their
 Bold named instance (`wght=700`) with `fonttools`; they are otherwise
 unmodified. Selecting an existing named instance keeps the original family
 name under the OFL. The Bold weight is bundled because it prints with the
-most contrast at the printer's 26px native resolution.
+most contrast at the printer's 32px native resolution.
 
 | File | Family | Copyright | License |
 |------|--------|-----------|---------|

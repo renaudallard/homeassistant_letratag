@@ -71,7 +71,7 @@ CUT_TAPE = 48  # 0x30 = cut
 NO_CUT = 49  # 0x31 = don't cut
 
 # Label dimensions (12mm tape)
-LABEL_HEIGHT = 26  # pixels
+LABEL_HEIGHT = 32  # pixels, matches the LetraTag Connect app print band
 LABEL_HEIGHT_PADDED = 32  # bits (4 bytes per column)
 MIN_RASTER_LENGTH = 150  # minimum rasterlines (columns) with padding
 
@@ -146,7 +146,7 @@ def _bundled(filename: str) -> str:
 
 
 # Named fonts - display name -> list of candidate file paths
-# Chosen for excellent readability at 26px native resolution. System paths
+# Chosen for excellent readability at 32px native resolution. System paths
 # are tried first; bundled copies act as a fallback so the named fonts also
 # work on hosts that do not ship them.
 FONT_MAP = {

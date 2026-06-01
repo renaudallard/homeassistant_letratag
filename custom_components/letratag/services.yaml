@@ -59,7 +59,7 @@ print_label:
       selector:
         number:
           min: 8
-          max: 52
+          max: 64
           mode: slider
     font_path:
       name: Font Path
