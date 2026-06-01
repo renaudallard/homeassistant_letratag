@@ -96,13 +96,20 @@ def _auto_font_size(
     font_path: str | None,
     max_height: int,
 ) -> int:
-    """Find the largest font size that fits within max_height pixels."""
+    """Find the largest font size whose rendered ink fills max_height pixels.
+
+    A font's point size is not its pixel height: rendered at N points, the
+    actual glyph ink is noticeably shorter than N pixels. Searching only up
+    to max_height as a point size left a quarter of the tape unused, so the
+    ceiling is 3x max_height to let the text grow until its ink box fills the
+    available height. The ink box still has to fit, so descenders never clip.
+    """
     best = 8
     system_font = font_path or _find_system_font()
     if not system_font:
         return best
 
-    for size in range(max_height, 7, -1):
+    for size in range(max_height * 3, 7, -1):
         font = ImageFont.truetype(system_font, size)
         bbox = font.getbbox(text)
         text_height = bbox[3] - bbox[1]
