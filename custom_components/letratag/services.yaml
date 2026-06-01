@@ -40,6 +40,18 @@ print_label:
             - "Noto Serif Bold"
             - "Courgette Bold"
             - "Sancreek Bold"
+            - "Noto Sans Bold"
+            - "Open Sans Bold"
+            - "Source Sans 3 Bold"
+            - "Inter Bold"
+            - "Fira Sans Bold"
+            - "Oswald Bold"
+            - "Archivo Narrow Bold"
+            - "Bebas Neue"
+            - "Merriweather Bold"
+            - "Roboto Slab Bold"
+            - "JetBrains Mono Bold"
+            - "IBM Plex Mono Bold"
     font_size:
       name: Font Size
       description: Font size in pixels. Auto-calculated if omitted.

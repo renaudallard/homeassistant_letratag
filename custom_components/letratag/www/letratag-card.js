@@ -123,6 +123,18 @@ class LetraTagCard extends HTMLElement {
       "Noto Serif Bold": "'Noto Serif', Georgia, 'Times New Roman', serif",
       "Courgette Bold": "'Courgette', cursive",
       "Sancreek Bold": "'Sancreek', fantasy",
+      "Noto Sans Bold": "'Noto Sans', Arial, Helvetica, sans-serif",
+      "Open Sans Bold": "'Open Sans', Arial, Helvetica, sans-serif",
+      "Source Sans 3 Bold": "'Source Sans 3', 'Source Sans Pro', Arial, sans-serif",
+      "Inter Bold": "'Inter', Arial, Helvetica, sans-serif",
+      "Fira Sans Bold": "'Fira Sans', Arial, Helvetica, sans-serif",
+      "Oswald Bold": "'Oswald', 'Arial Narrow', sans-serif",
+      "Archivo Narrow Bold": "'Archivo Narrow', 'Arial Narrow', sans-serif",
+      "Bebas Neue": "'Bebas Neue', 'Arial Narrow', sans-serif",
+      "Merriweather Bold": "'Merriweather', Georgia, 'Times New Roman', serif",
+      "Roboto Slab Bold": "'Roboto Slab', Georgia, serif",
+      "JetBrains Mono Bold": "'JetBrains Mono', 'Courier New', monospace",
+      "IBM Plex Mono Bold": "'IBM Plex Mono', 'Courier New', monospace",
     };
     return map[this._state.fontName] || "sans-serif";
   }
@@ -192,6 +204,18 @@ class LetraTagCard extends HTMLElement {
       "Noto Serif Bold",
       "Courgette Bold",
       "Sancreek Bold",
+      "Noto Sans Bold",
+      "Open Sans Bold",
+      "Source Sans 3 Bold",
+      "Inter Bold",
+      "Fira Sans Bold",
+      "Oswald Bold",
+      "Archivo Narrow Bold",
+      "Bebas Neue",
+      "Merriweather Bold",
+      "Roboto Slab Bold",
+      "JetBrains Mono Bold",
+      "IBM Plex Mono Bold",
     ];
 
     this.shadowRoot.innerHTML = `

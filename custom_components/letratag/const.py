@@ -187,6 +187,42 @@ FONT_MAP = {
     "Sancreek Bold": [
         _bundled("Sancreek-Bold.ttf"),
     ],
+    "Noto Sans Bold": [
+        _bundled("NotoSans-Bold.ttf"),
+    ],
+    "Open Sans Bold": [
+        _bundled("OpenSans-Bold.ttf"),
+    ],
+    "Source Sans 3 Bold": [
+        _bundled("SourceSans3-Bold.ttf"),
+    ],
+    "Inter Bold": [
+        _bundled("Inter-Bold.ttf"),
+    ],
+    "Fira Sans Bold": [
+        _bundled("FiraSans-Bold.ttf"),
+    ],
+    "Oswald Bold": [
+        _bundled("Oswald-Bold.ttf"),
+    ],
+    "Archivo Narrow Bold": [
+        _bundled("ArchivoNarrow-Bold.ttf"),
+    ],
+    "Bebas Neue": [
+        _bundled("BebasNeue-Regular.ttf"),
+    ],
+    "Merriweather Bold": [
+        _bundled("Merriweather-Bold.ttf"),
+    ],
+    "Roboto Slab Bold": [
+        _bundled("RobotoSlab-Bold.ttf"),
+    ],
+    "JetBrains Mono Bold": [
+        _bundled("JetBrainsMono-Bold.ttf"),
+    ],
+    "IBM Plex Mono Bold": [
+        _bundled("IBMPlexMono-Bold.ttf"),
+    ],
 }
 
 
