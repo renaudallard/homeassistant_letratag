@@ -183,7 +183,7 @@ Print a text label. Font size is auto-calculated to fill the tape height, or can
 | `text` | string | **yes** | | Label text. Use `\n` for multiple lines |
 | `copies` | int | no | `1` | Number of copies (1 - 255) |
 | `cut` | bool | no | `true` | Cut tape after printing |
-| `font_name` | string | no | | One of the 5 built-in fonts (see below) |
+| `font_name` | string | no | | One of the 21 built-in fonts (see below) |
 | `font_size` | int | no | auto | Font size in pixels (8 - 64) |
 | `font_path` | string | no | | Path to a custom `.ttf` file (used when `font_name` is not set) |
 | `rotate` | bool | no | `false` | Banner mode: rotate text 90 degrees |
