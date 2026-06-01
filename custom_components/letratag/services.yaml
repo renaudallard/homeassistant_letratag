@@ -36,6 +36,10 @@ print_label:
             - "DejaVu Serif Bold"
             - "Liberation Sans Bold"
             - "FreeSans Bold"
+            - "Roboto Bold"
+            - "Noto Serif Bold"
+            - "Courgette Bold"
+            - "Sancreek Bold"
     font_size:
       name: Font Size
       description: Font size in pixels. Auto-calculated if omitted.

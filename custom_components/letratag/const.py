@@ -24,6 +24,8 @@
 
 """Constants for the DYMO LetraTag integration."""
 
+from pathlib import Path
+
 DOMAIN = "letratag"
 
 # BLE UUID templates - {UUID} replaced with device UUID (default "2b3d")
@@ -134,8 +136,19 @@ ADV_BATTERY_LOW = 0x08
 SERVICE_PRINT_LABEL = "print_label"
 SERVICE_PRINT_IMAGE = "print_image"
 
+# Fonts bundled with the integration (see fonts/ATTRIBUTION.md)
+_BUNDLED_FONT_DIR = Path(__file__).parent / "fonts"
+
+
+def _bundled(filename: str) -> str:
+    """Absolute path to a font shipped inside the integration."""
+    return str(_BUNDLED_FONT_DIR / filename)
+
+
 # Named fonts - display name -> list of candidate file paths
-# Chosen for excellent readability at 26px native resolution
+# Chosen for excellent readability at 26px native resolution. System paths
+# are tried first; bundled copies act as a fallback so the named fonts also
+# work on hosts that do not ship them.
 FONT_MAP = {
     "DejaVu Sans Bold": [
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
@@ -160,13 +173,25 @@ FONT_MAP = {
         "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
         "/usr/share/fonts/gnu-free/FreeSansBold.ttf",
     ],
+    "Roboto Bold": [
+        "/usr/share/fonts/truetype/roboto/Roboto-Bold.ttf",
+        _bundled("Roboto-Bold.ttf"),
+    ],
+    "Noto Serif Bold": [
+        "/usr/share/fonts/truetype/noto/NotoSerif-Bold.ttf",
+        _bundled("NotoSerif-Bold.ttf"),
+    ],
+    "Courgette Bold": [
+        _bundled("Courgette-Bold.ttf"),
+    ],
+    "Sancreek Bold": [
+        _bundled("Sancreek-Bold.ttf"),
+    ],
 }
 
 
 def resolve_font(name: str) -> str | None:
     """Resolve a font display name to its file path on this system."""
-    from pathlib import Path
-
     candidates = FONT_MAP.get(name, [])
     for path in candidates:
         if Path(path).is_file():

@@ -119,6 +119,10 @@ class LetraTagCard extends HTMLElement {
       "DejaVu Serif Bold": "'DejaVu Serif', Georgia, 'Times New Roman', serif",
       "Liberation Sans Bold": "'Liberation Sans', Arial, Helvetica, sans-serif",
       "FreeSans Bold": "'FreeSans', Arial, Helvetica, sans-serif",
+      "Roboto Bold": "'Roboto', Arial, Helvetica, sans-serif",
+      "Noto Serif Bold": "'Noto Serif', Georgia, 'Times New Roman', serif",
+      "Courgette Bold": "'Courgette', cursive",
+      "Sancreek Bold": "'Sancreek', fantasy",
     };
     return map[this._state.fontName] || "sans-serif";
   }
@@ -184,6 +188,10 @@ class LetraTagCard extends HTMLElement {
       "DejaVu Serif Bold",
       "Liberation Sans Bold",
       "FreeSans Bold",
+      "Roboto Bold",
+      "Noto Serif Bold",
+      "Courgette Bold",
+      "Sancreek Bold",
     ];
 
     this.shadowRoot.innerHTML = `

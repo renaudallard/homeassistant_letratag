@@ -27,7 +27,7 @@
 - **Image label printing** - print any image file, auto-scaled to tape size
 - **Native resolution rendering** - TrueType text rendered at 26px with column doubling for the printer's step rate
 - **Adaptive sensors** - automatically uses whichever data the printer model exposes (advertisement or GATT)
-- **5 built-in fonts** - DejaVu Sans, DejaVu Mono, DejaVu Serif, Liberation Sans, FreeSans (all Bold)
+- **9 built-in fonts** - DejaVu Sans/Mono/Serif, Liberation Sans, FreeSans, Roboto, Noto Serif, Courgette, Sancreek (all Bold)
 - **Multi-line support** - split text across lines with `\n`
 - **Custom fonts** - use any TrueType font via path
 
@@ -66,6 +66,8 @@ Copy `custom_components/letratag/` into your Home Assistant configuration direct
       sensor.py
       services.yaml
       strings.json
+      fonts/
+        *.ttf
       translations/
         en.json
       www/
@@ -122,7 +124,7 @@ The resource is automatically removed when the last LetraTag config entry is unl
 
 - **Live label preview** - tape-shaped preview that updates as you type
 - **Text input** - multi-line textarea, Ctrl+Enter to print
-- **Font selector** - 5 built-in fonts optimized for 26px resolution
+- **Font selector** - 9 built-in fonts optimized for 26px resolution
 - **Size slider** - 8px to Auto (rightmost = biggest, auto-fills tape height)
 - **Normal / Banner toggle** - switch between horizontal text and 90 degree banner mode
 - **Copies and cut** - set copy count and tape cutting
@@ -242,8 +244,16 @@ Text is rendered directly at the printer's native resolution (26 pixels for 12mm
 | DejaVu Serif Bold | Serif | Formal labels |
 | Liberation Sans Bold | Sans-serif | Clean, compact |
 | FreeSans Bold | Sans-serif | Wide language support |
+| Roboto Bold | Sans-serif | Modern, rounded |
+| Noto Serif Bold | Serif | Formal labels, wide language support |
+| Courgette Bold | Script | Casual, handwritten look |
+| Sancreek Bold | Display | Decorative western style |
 
-If `font_name` is not specified, the system's first available DejaVu font is used.
+DejaVu, Liberation and FreeSans are resolved from the host's system fonts.
+Roboto, Noto Serif, Courgette and Sancreek are bundled with the integration
+(see `custom_components/letratag/fonts/ATTRIBUTION.md` for licenses) so they
+work on any host. If `font_name` is not specified, the system's first
+available DejaVu font is used.
 
 ### Banner Mode
 
