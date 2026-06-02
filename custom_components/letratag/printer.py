@@ -54,8 +54,6 @@ from .const import (
 from .protocol import (
     ProtocolStream,
     build_print_stream,
-    build_status_direct,
-    parse_manufacturer_data,
     parse_notification,
 )
 
@@ -228,31 +226,3 @@ class LetraTagPrinter:
             return msg
 
         raise PrintError(msg)
-
-    async def request_status(self, ble_device: BLEDevice) -> dict:
-        """Send a status request and return parsed manufacturer data."""
-        client: BleakClient | None = None
-        try:
-            client = await establish_connection(
-                BleakClient,
-                ble_device,
-                self.address,
-            )
-            await client.write_gatt_char(self._write_uuid, build_status_direct())
-            data = await client.read_gatt_char(self._notify_uuid)
-            return parse_manufacturer_data(data)
-        except BleakError as err:
-            _LOGGER.error("Status request failed: %s", err)
-            return {}
-        finally:
-            if client is not None and client.is_connected:
-                await client.disconnect()
-
-    @staticmethod
-    def parse_advertisement(
-        manufacturer_data: dict[int, bytes],
-    ) -> dict:
-        """Parse manufacturer data from a BLE advertisement."""
-        for _company_id, data in manufacturer_data.items():
-            return parse_manufacturer_data(data)
-        return {}

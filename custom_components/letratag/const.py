@@ -46,8 +46,6 @@ ESC = 0x1B
 
 # Command codes (ASCII character after ESC)
 CMD_START = ord("s")
-CMD_MEDIA_TYPE = ord("M")
-CMD_PRINT_DENSITY = ord("C")
 CMD_PRINT_DATA = ord("D")
 CMD_FORM_FEED = ord("E")
 CMD_STATUS = ord("A")
@@ -120,12 +118,6 @@ ERROR_CODES = {
     1024: "Cutter blade stuck",
     2048: "Power too low",
 }
-
-# Manufacturer data advertisement bit fields
-ADV_BATTERY_TOO_LOW = 0x04
-ADV_CUTTER_JAM = 0x02
-ADV_TAPE_JAM = 0x01
-ADV_BATTERY_LOW = 0x08
 
 # Service names
 SERVICE_PRINT_LABEL = "print_label"

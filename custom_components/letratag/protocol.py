@@ -47,7 +47,6 @@ from .const import (
     CMD_COPIES,
     CMD_END,
     CMD_FORM_FEED,
-    CMD_MEDIA_TYPE,
     CMD_PRINT_DATA,
     CMD_START,
     CMD_STATUS,
@@ -72,15 +71,6 @@ def build_start_job(job_id: bytes = DEFAULT_JOB_ID) -> bytes:
     buf[0] = ESC
     buf[1] = CMD_START
     buf[2 : 2 + len(job_id)] = job_id
-    return bytes(buf)
-
-
-def build_media_type(media_id: int) -> bytes:
-    """Build MediaType command (6 bytes)."""
-    buf = bytearray(6)
-    buf[0] = ESC
-    buf[1] = CMD_MEDIA_TYPE
-    buf[2] = media_id & 0xFF
     return bytes(buf)
 
 
@@ -121,11 +111,6 @@ def build_status_request() -> bytes:
 def build_end_job() -> bytes:
     """Build EndJob command (2 bytes)."""
     return _cmd(CMD_END)
-
-
-def build_status_direct() -> bytes:
-    """Build a direct status write (3 bytes, no stream wrapping)."""
-    return bytes([ESC, CMD_STATUS, 0x00])
 
 
 @dataclass
