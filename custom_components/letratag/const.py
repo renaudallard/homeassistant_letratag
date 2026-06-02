@@ -53,7 +53,6 @@ CMD_FORM_FEED = ord("E")
 CMD_STATUS = ord("A")
 CMD_END = ord("Q")
 CMD_COPIES = ord("#")
-CMD_CUT = ord("p")
 
 # Protocol framing
 PREAMBLE = 0xFF
@@ -65,10 +64,6 @@ BODY_CHUNK_SIZE = 500
 BPP_MONO = 0x81  # 1-bit monochrome
 ALIGNMENT_CENTER = 0x02
 DEFAULT_JOB_ID = bytes([0x9A, 0x02, 0x00, 0x00])
-
-# Cut command values
-CUT_TAPE = 48  # 0x30 = cut
-NO_CUT = 49  # 0x31 = don't cut
 
 # Label dimensions (12mm tape)
 LABEL_HEIGHT = 32  # pixels, matches the LetraTag Connect app print band

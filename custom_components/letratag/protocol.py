@@ -45,20 +45,17 @@ from .const import (
     BODY_CHUNK_SIZE,
     BPP_MONO,
     CMD_COPIES,
-    CMD_CUT,
     CMD_END,
     CMD_FORM_FEED,
     CMD_MEDIA_TYPE,
     CMD_PRINT_DATA,
     CMD_START,
     CMD_STATUS,
-    CUT_TAPE,
     DEFAULT_JOB_ID,
     ESC,
     FLAGS,
     LABEL_HEIGHT_PADDED,
     MAGIC,
-    NO_CUT,
     PREAMBLE,
     TAPE_SIZES,
 )
@@ -109,11 +106,6 @@ def build_print_data(
     buf[8:12] = height.to_bytes(4, "little")
     buf[12:] = print_data
     return bytes(buf)
-
-
-def build_cut(cut: bool = True) -> bytes:
-    """Build Cut command (3 bytes)."""
-    return bytes([ESC, CMD_CUT, CUT_TAPE if cut else NO_CUT])
 
 
 def build_form_feed() -> bytes:
@@ -194,7 +186,6 @@ def build_print_stream(
     print_data: bytes,
     width: int,
     copies: int = 1,
-    cut: bool = True,
     label_height_padded: int = LABEL_HEIGHT_PADDED,
 ) -> ProtocolStream:
     """Build the complete print command stream.
@@ -203,7 +194,7 @@ def build_print_stream(
     then wraps in the communication protocol stream.
 
     The Genie (LetraTag Connect) app always uses FormFeed after print data.
-    The Cut command is only used by the Avatar app variant.
+    There is no software cut command for this protocol.
     """
     parts = [
         build_start_job(),

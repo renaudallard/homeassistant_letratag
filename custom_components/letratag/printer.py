@@ -122,7 +122,6 @@ class LetraTagPrinter:
         img: Any,
         ble_device: BLEDevice,
         copies: int = 1,
-        cut: bool = True,
     ) -> str:
         """Print a PIL Image.
 
@@ -130,7 +129,6 @@ class LetraTagPrinter:
             img: PIL Image object.
             ble_device: BLEDevice from HA bluetooth.
             copies: Number of copies (1-255).
-            cut: Whether to cut the tape after printing.
 
         Returns:
             Status message string.
@@ -152,7 +150,6 @@ class LetraTagPrinter:
             print_data=print_data,
             width=width,
             copies=copies,
-            cut=cut,
             label_height_padded=LABEL_HEIGHT_PADDED,
         )
 

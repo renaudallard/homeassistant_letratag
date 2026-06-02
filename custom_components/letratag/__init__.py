@@ -66,7 +66,6 @@ PRINT_LABEL_SCHEMA = vol.Schema(
         vol.Optional("copies", default=1): vol.All(
             vol.Coerce(int), vol.Range(min=1, max=255)
         ),
-        vol.Optional("cut", default=True): cv.boolean,
         vol.Optional("font_size"): vol.All(vol.Coerce(int), vol.Range(min=8, max=64)),
         vol.Optional("font_name"): vol.In(list(FONT_MAP.keys())),
         vol.Optional("font_path"): cv.string,
@@ -80,7 +79,6 @@ PRINT_IMAGE_SCHEMA = vol.Schema(
         vol.Optional("copies", default=1): vol.All(
             vol.Coerce(int), vol.Range(min=1, max=255)
         ),
-        vol.Optional("cut", default=True): cv.boolean,
     }
 )
 
@@ -193,7 +191,6 @@ def _register_services(hass: HomeAssistant) -> None:
             result = await printer.print_image(
                 img=img,
                 copies=call.data.get("copies", 1),
-                cut=call.data.get("cut", True),
                 ble_device=ble_device,
             )
             _LOGGER.info("Print result: %s", result)
@@ -232,7 +229,6 @@ def _register_services(hass: HomeAssistant) -> None:
             result = await printer.print_image(
                 img=img,
                 copies=call.data.get("copies", 1),
-                cut=call.data.get("cut", True),
                 ble_device=ble_device,
             )
             _LOGGER.info("Print result: %s", result)

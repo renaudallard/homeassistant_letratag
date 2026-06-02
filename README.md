@@ -132,7 +132,7 @@ The resource is automatically removed when the last LetraTag config entry is unl
 - **Configurable defaults** - preset the starting font and size with `default_font` / `default_size`
 - **Visual editor** - configure title, default font and default size from the dashboard card editor
 - **Normal / Banner toggle** - switch between horizontal text and 90 degree banner mode
-- **Copies and cut** - set copy count and tape cutting
+- **Copies** - print multiple copies of a label
 - **Sensor display** - shows available sensors (unavailable sensors are hidden)
 - **Responsive** - adapts to any column width, stacks controls on narrow screens
 
@@ -187,7 +187,6 @@ Print a text label. Font size is auto-calculated to fill the tape height, or can
 |-----------|------|:--------:|---------|-------------|
 | `text` | string | **yes** | | Label text. Use `\n` for multiple lines |
 | `copies` | int | no | `1` | Number of copies (1 - 255) |
-| `cut` | bool | no | `true` | Cut tape after printing |
 | `font_name` | string | no | | One of the 21 built-in fonts (see below) |
 | `font_size` | int | no | auto | Font size in pixels (8 - 64) |
 | `font_path` | string | no | | Path to a custom `.ttf` file (used when `font_name` is not set) |
@@ -225,7 +224,6 @@ Print an image file. The image is automatically resized to the tape height and c
 |-----------|------|:--------:|---------|-------------|
 | `image_path` | string | **yes** | | Path to image file (PNG, BMP, JPG, etc.) |
 | `copies` | int | no | `1` | Number of copies (1 - 255) |
-| `cut` | bool | no | `true` | Cut tape after printing |
 
 ```yaml
 service: letratag.print_image

@@ -44,7 +44,6 @@ class LetraTagCard extends HTMLElement {
       fontSize: 0, // 0 = auto
       rotate: false,
       copies: 1,
-      cut: true,
       printing: false,
       message: "",
       messageType: "",
@@ -229,7 +228,6 @@ class LetraTagCard extends HTMLElement {
     const data = {
       text: this._state.text,
       copies: this._state.copies,
-      cut: this._state.cut,
       font_name: this._state.fontName,
       rotate: this._state.rotate,
     };
@@ -668,10 +666,6 @@ class LetraTagCard extends HTMLElement {
               <label for="copies-input">Copies</label>
               <input type="number" id="copies-input" value="1" min="1" max="255">
             </div>
-            <div class="option">
-              <input type="checkbox" id="cut-check" checked>
-              <label for="cut-check">Cut tape</label>
-            </div>
             <div style="flex:1"></div>
           </div>
 
@@ -767,11 +761,6 @@ class LetraTagCard extends HTMLElement {
     $("copies-input").addEventListener("change", (e) => {
       this._state.copies = Math.max(1, Math.min(255, parseInt(e.target.value, 10) || 1));
       e.target.value = this._state.copies;
-    });
-
-    // Cut checkbox
-    $("cut-check").addEventListener("change", (e) => {
-      this._state.cut = e.target.checked;
     });
 
     // Print button
