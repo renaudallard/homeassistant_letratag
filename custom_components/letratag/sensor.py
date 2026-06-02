@@ -63,6 +63,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
     DOMAIN,
+    ERROR_CODES,
     PRINT_REPLY_UUID,
     PRINT_REQUEST_UUID,
     TAPE_SIZES,
@@ -308,9 +309,8 @@ class LetraTagCassetteSensor(LetraTagSensorBase):
 
     @property
     def available(self) -> bool:
-        return (
-            self._status_data.get("cassette_id") is not None
-            or self._status_data.get("sku") is not None
+        return self._status_data.get("cassette_id") is not None or bool(
+            self._status_data.get("sku")
         )
 
     @property
@@ -319,10 +319,10 @@ class LetraTagCassetteSensor(LetraTagSensorBase):
         cassette_id = self._status_data.get("cassette_id")
         if cassette_id is not None:
             return TAPE_SIZES.get(cassette_id, f"Unknown ({cassette_id})")
-        # From extended GATT status response
+        # From extended GATT status response (an ASCII SKU string)
         sku = self._status_data.get("sku")
-        if sku and isinstance(sku, dict):
-            return sku.get("value", "Unknown")
+        if sku:
+            return sku
         return None
 
 
@@ -353,10 +353,10 @@ class LetraTagStatusSensor(LetraTagSensorBase):
             return "Cutter jam"
         if self._status_data.get("battery_too_low"):
             return "Battery too low"
-        # Extended GATT error
-        error = self._status_data.get("error")
-        if error and isinstance(error, dict) and error.get("key", 0) != 0:
-            return error.get("value", "Error")
+        # Extended GATT error code
+        error_code = self._status_data.get("error_code")
+        if error_code:
+            return ERROR_CODES.get(error_code, f"Error {error_code}")
         # Short GATT status code
         code = self._status_data.get("status_code")
         if code is not None and code != 0:

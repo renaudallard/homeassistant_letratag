@@ -281,7 +281,9 @@ def parse_status_info(data: bytes | bytearray) -> dict:
     error_code = int.from_bytes(buf[22:26], "little")
     label_count = int.from_bytes(buf[26:28], "little")
     eps_charging = buf[28] if len(buf) > 28 else 0
-    battery_level = buf[29] if len(buf) > 29 else 0
+    # Extended status reports the battery as a 0-100 percentage, unlike the
+    # advertisement which packs a 0-3 level. Keep it under a distinct key.
+    battery_level_raw = buf[29] if len(buf) > 29 else 0
 
     return {
         "status_length": status_length,
@@ -294,5 +296,5 @@ def parse_status_info(data: bytes | bytearray) -> dict:
         "error_code": error_code,
         "label_count": label_count,
         "eps_charging": eps_charging,
-        "battery_level": battery_level,
+        "battery_level_raw": battery_level_raw,
     }
