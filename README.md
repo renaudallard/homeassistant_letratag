@@ -111,7 +111,8 @@ A custom card is included for printing labels directly from the UI.
 
 The card JS is automatically registered as a Lovelace resource when the integration loads (served securely via `StaticPathConfig` and auto-added to the resource collection). No manual resource configuration needed.
 
-Just add a card to your dashboard:
+Just add a card to your dashboard. All options can be set from the visual
+editor (the gear icon) or in YAML:
 
 ```yaml
 type: custom:letratag-card
@@ -129,6 +130,7 @@ The resource is automatically removed when the last LetraTag config entry is unl
 - **Font selector** - 21 built-in fonts optimized for 32px resolution
 - **Size slider** - 8px to Auto (rightmost = biggest, auto-fills tape height)
 - **Configurable defaults** - preset the starting font and size with `default_font` / `default_size`
+- **Visual editor** - configure title, default font and default size from the dashboard card editor
 - **Normal / Banner toggle** - switch between horizontal text and 90 degree banner mode
 - **Copies and cut** - set copy count and tape cutting
 - **Sensor display** - shows available sensors (unavailable sensors are hidden)

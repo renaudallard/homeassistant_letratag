@@ -83,6 +83,47 @@ class LetraTagCard extends HTMLElement {
     return {};
   }
 
+  static getConfigForm() {
+    // Native ha-form editor shown in the dashboard card editor. HA renders
+    // these selectors itself; every field is optional and maps to the YAML
+    // keys. Leaving the size empty keeps the automatic size.
+    return {
+      schema: [
+        { name: "title", selector: { text: {} } },
+        {
+          name: "default_font",
+          selector: { select: { mode: "dropdown", options: FONTS } },
+        },
+        {
+          name: "default_size",
+          selector: {
+            number: {
+              min: 8,
+              max: 32,
+              step: 1,
+              mode: "box",
+              unit_of_measurement: "px",
+            },
+          },
+        },
+      ],
+      computeLabel: (schema) => {
+        switch (schema.name) {
+          case "title":
+            return "Title";
+          case "default_font":
+            return "Default font";
+          case "default_size":
+            return "Default size";
+          default:
+            return undefined;
+        }
+      },
+      computeHelper: (schema) =>
+        schema.name === "default_size" ? "Leave empty for automatic size" : undefined,
+    };
+  }
+
   _updateState(key, value) {
     this._state[key] = value;
     this._updatePreview();
