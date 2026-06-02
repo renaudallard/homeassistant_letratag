@@ -189,7 +189,7 @@ async def async_setup_entry(
                     status_data.update(parsed)
                     status_data["online"] = True
                     _update_entities()
-                break
+                    break
 
         # Fetch GATT data once per online session
         if not fetched_this_session["done"]:
