@@ -79,7 +79,7 @@ class LetraTagConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """Confirm bluetooth discovery."""
         if self._discovery_info is None:
-            return self.async_abort(reason="already_configured")
+            return self.async_abort(reason="no_discovery_info")
 
         if user_input is not None:
             return self.async_create_entry(

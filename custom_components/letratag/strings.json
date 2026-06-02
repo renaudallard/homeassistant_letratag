@@ -16,7 +16,8 @@
       }
     },
     "abort": {
-      "already_configured": "This device is already configured."
+      "already_configured": "This device is already configured.",
+      "no_discovery_info": "No discovery information was available. Please try again."
     }
   }
 }
