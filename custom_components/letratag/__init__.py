@@ -219,7 +219,9 @@ def _register_services(hass: HomeAssistant) -> None:
             raise HomeAssistantError(f"Image not found: {image_path}")
 
         def _load() -> Image.Image:
-            return Image.open(str(resolved))
+            with Image.open(str(resolved)) as im:
+                im.load()
+                return im
 
         try:
             img = await hass.async_add_executor_job(_load)
