@@ -6,6 +6,32 @@
  * and a live label preview.
  */
 
+// Built-in font display names, shared by the dropdown and config validation.
+// Must stay in sync with FONT_MAP in const.py and the _cssFontFamily map.
+const FONTS = [
+  "DejaVu Sans Bold",
+  "DejaVu Mono Bold",
+  "DejaVu Serif Bold",
+  "Liberation Sans Bold",
+  "FreeSans Bold",
+  "Roboto Bold",
+  "Noto Serif Bold",
+  "Courgette Bold",
+  "Sancreek Bold",
+  "Noto Sans Bold",
+  "Open Sans Bold",
+  "Source Sans 3 Bold",
+  "Inter Bold",
+  "Fira Sans Bold",
+  "Oswald Bold",
+  "Archivo Narrow Bold",
+  "Bebas Neue",
+  "Merriweather Bold",
+  "Roboto Slab Bold",
+  "JetBrains Mono Bold",
+  "IBM Plex Mono Bold",
+];
+
 class LetraTagCard extends HTMLElement {
   constructor() {
     super();
@@ -27,7 +53,20 @@ class LetraTagCard extends HTMLElement {
 
   setConfig(config) {
     this._config = config;
+    this._applyConfigDefaults(config);
     this._render();
+  }
+
+  _applyConfigDefaults(config) {
+    // Optional card defaults. default_font must be a known font, otherwise
+    // the built-in default is kept. default_size is an explicit 8-32 px size;
+    // anything else (omitted, 0, out of range) means auto.
+    if (FONTS.includes(config.default_font)) {
+      this._state.fontName = config.default_font;
+    }
+    const size = parseInt(config.default_size, 10);
+    this._state.fontSize =
+      Number.isInteger(size) && size > 0 ? Math.min(Math.max(size, 8), 32) : 0;
   }
 
   set hass(hass) {
@@ -194,30 +233,6 @@ class LetraTagCard extends HTMLElement {
   }
 
   _render() {
-    const fonts = [
-      "DejaVu Sans Bold",
-      "DejaVu Mono Bold",
-      "DejaVu Serif Bold",
-      "Liberation Sans Bold",
-      "FreeSans Bold",
-      "Roboto Bold",
-      "Noto Serif Bold",
-      "Courgette Bold",
-      "Sancreek Bold",
-      "Noto Sans Bold",
-      "Open Sans Bold",
-      "Source Sans 3 Bold",
-      "Inter Bold",
-      "Fira Sans Bold",
-      "Oswald Bold",
-      "Archivo Narrow Bold",
-      "Bebas Neue",
-      "Merriweather Bold",
-      "Roboto Slab Bold",
-      "JetBrains Mono Bold",
-      "IBM Plex Mono Bold",
-    ];
-
     this.shadowRoot.innerHTML = `
       <style>
         :host {
@@ -586,7 +601,7 @@ class LetraTagCard extends HTMLElement {
             <div class="field">
               <label>Font</label>
               <select id="font-select">
-                ${fonts.map((f) => `<option value="${f}">${f}</option>`).join("")}
+                ${FONTS.map((f) => `<option value="${f}">${f}</option>`).join("")}
               </select>
             </div>
 
@@ -626,11 +641,37 @@ class LetraTagCard extends HTMLElement {
     `;
 
     this._attachListeners();
+    this._syncControls();
     this._updatePreview();
 
     // Set title via textContent to prevent XSS
     const titleEl = this.shadowRoot.getElementById("card-title");
     if (titleEl) titleEl.textContent = this._config.title || "DYMO LetraTag";
+  }
+
+  _syncControls() {
+    // Reflect the runtime state into the freshly rendered controls so
+    // configured defaults show up. The HTML template only carries the
+    // built-in defaults; everything else is applied here.
+    const $ = (id) => this.shadowRoot.getElementById(id);
+
+    const fontSel = $("font-select");
+    if (fontSel) fontSel.value = this._state.fontName;
+
+    const slider = $("size-slider");
+    const sizeValue = $("size-value");
+    const sizeLabel = $("size-label");
+    if (!slider || !sizeValue) return;
+
+    if (this._state.fontSize > 0) {
+      slider.value = this._state.fontSize;
+      sizeValue.textContent = `${this._state.fontSize}px`;
+      if (sizeLabel) sizeLabel.textContent = "";
+    } else {
+      slider.value = slider.max;
+      sizeValue.textContent = "Auto";
+      if (sizeLabel) sizeLabel.textContent = "(auto)";
+    }
   }
 
   _attachListeners() {
@@ -653,6 +694,8 @@ class LetraTagCard extends HTMLElement {
       const isAuto = raw >= max;
       this._state.fontSize = isAuto ? 0 : raw;
       $("size-value").textContent = isAuto ? "Auto" : `${raw}px`;
+      const sizeLabel = $("size-label");
+      if (sizeLabel) sizeLabel.textContent = isAuto ? "(auto)" : "";
       this._updatePreview();
     });
 
@@ -672,6 +715,8 @@ class LetraTagCard extends HTMLElement {
         slider.value = slider.max;
         this._state.fontSize = 0;
         $("size-value").textContent = "Auto";
+        const sizeLabel = $("size-label");
+        if (sizeLabel) sizeLabel.textContent = "(auto)";
 
         this._updatePreview();
       });

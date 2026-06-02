@@ -115,7 +115,9 @@ Just add a card to your dashboard:
 
 ```yaml
 type: custom:letratag-card
-title: Label Printer    # optional, defaults to "DYMO LetraTag"
+title: Label Printer        # optional, defaults to "DYMO LetraTag"
+default_font: Roboto Bold   # optional, defaults to "DejaVu Sans Bold"
+default_size: 32            # optional, 8-32 px, omit for auto
 ```
 
 The resource is automatically removed when the last LetraTag config entry is unloaded.
@@ -126,6 +128,7 @@ The resource is automatically removed when the last LetraTag config entry is unl
 - **Text input** - multi-line textarea, Ctrl+Enter to print
 - **Font selector** - 21 built-in fonts optimized for 32px resolution
 - **Size slider** - 8px to Auto (rightmost = biggest, auto-fills tape height)
+- **Configurable defaults** - preset the starting font and size with `default_font` / `default_size`
 - **Normal / Banner toggle** - switch between horizontal text and 90 degree banner mode
 - **Copies and cut** - set copy count and tape cutting
 - **Sensor display** - shows available sensors (unavailable sensors are hidden)
