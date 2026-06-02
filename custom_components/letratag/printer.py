@@ -140,7 +140,12 @@ class LetraTagPrinter:
         """
         from .render import prepare_print_data
 
-        width, print_data = prepare_print_data(img, LABEL_HEIGHT)
+        # Rasterizing is CPU bound (per pixel loops and a resize), so keep it
+        # off the event loop.
+        loop = asyncio.get_running_loop()
+        width, print_data = await loop.run_in_executor(
+            None, prepare_print_data, img, LABEL_HEIGHT
+        )
         _LOGGER.debug("Print data: %d rasterlines, %d bytes", width, len(print_data))
 
         stream = build_print_stream(
