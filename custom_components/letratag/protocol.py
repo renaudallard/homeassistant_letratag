@@ -45,16 +45,19 @@ from .const import (
     BODY_CHUNK_SIZE,
     BPP_MONO,
     CMD_COPIES,
+    CMD_CUT,
     CMD_END,
     CMD_FORM_FEED,
     CMD_PRINT_DATA,
     CMD_START,
     CMD_STATUS,
+    CUT_TAPE,
     DEFAULT_JOB_ID,
     ESC,
     FLAGS,
     LABEL_HEIGHT_PADDED,
     MAGIC,
+    NO_CUT,
     PREAMBLE,
     TAPE_SIZES,
 )
@@ -101,6 +104,11 @@ def build_print_data(
 def build_form_feed() -> bytes:
     """Build FormFeed command (2 bytes)."""
     return _cmd(CMD_FORM_FEED)
+
+
+def build_cut(cut: bool = True) -> bytes:
+    """Build Cut command (3 bytes, cutter-equipped models only)."""
+    return bytes([ESC, CMD_CUT, CUT_TAPE if cut else NO_CUT])
 
 
 def build_status_request() -> bytes:
@@ -171,21 +179,25 @@ def build_print_stream(
     print_data: bytes,
     width: int,
     copies: int = 1,
+    cut: bool | None = None,
     label_height_padded: int = LABEL_HEIGHT_PADDED,
 ) -> ProtocolStream:
     """Build the complete print command stream.
 
-    Assembles: StartJob + Copies + PrintData + FormFeed + Status + EndJob,
+    Assembles StartJob + Copies + PrintData + terminator + Status + EndJob,
     then wraps in the communication protocol stream.
 
-    The Genie (LetraTag Connect) app always uses FormFeed after print data.
-    There is no software cut command for this protocol.
+    The terminator depends on the printer. The LetraTag 200B (Genie) has no
+    cutter and always uses FormFeed, selected with cut=None. Cutter-equipped
+    models use the Cut command instead: cut=True cuts the tape, cut=False
+    feeds without cutting.
     """
+    terminator = build_form_feed() if cut is None else build_cut(cut)
     parts = [
         build_start_job(),
         build_copies(copies),
         build_print_data(width, label_height_padded, print_data),
-        build_form_feed(),
+        terminator,
         build_status_request(),
         build_end_job(),
     ]

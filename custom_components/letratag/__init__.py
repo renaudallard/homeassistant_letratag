@@ -45,6 +45,7 @@ from homeassistant.exceptions import HomeAssistantError
 import homeassistant.helpers.config_validation as cv
 
 from .const import (
+    CONF_HAS_CUTTER,
     DOMAIN,
     FONT_MAP,
     LABEL_HEIGHT,
@@ -66,6 +67,7 @@ PRINT_LABEL_SCHEMA = vol.Schema(
         vol.Optional("copies", default=1): vol.All(
             vol.Coerce(int), vol.Range(min=1, max=255)
         ),
+        vol.Optional("cut", default=True): cv.boolean,
         vol.Optional("font_size"): vol.All(vol.Coerce(int), vol.Range(min=8, max=64)),
         vol.Optional("font_name"): vol.In(list(FONT_MAP.keys())),
         vol.Optional("font_path"): cv.string,
@@ -79,12 +81,13 @@ PRINT_IMAGE_SCHEMA = vol.Schema(
         vol.Optional("copies", default=1): vol.All(
             vol.Coerce(int), vol.Range(min=1, max=255)
         ),
+        vol.Optional("cut", default=True): cv.boolean,
     }
 )
 
 
-def _get_printer(hass: HomeAssistant) -> tuple[LetraTagPrinter, BLEDevice]:
-    """Get the first configured printer and its BLE device."""
+def _get_printer(hass: HomeAssistant) -> tuple[LetraTagPrinter, BLEDevice, bool]:
+    """Get the first configured printer, its BLE device and cutter flag."""
     domain_data = hass.data.get(DOMAIN, {})
 
     # Find first config entry key (skip internal keys starting with _)
@@ -98,6 +101,8 @@ def _get_printer(hass: HomeAssistant) -> tuple[LetraTagPrinter, BLEDevice]:
     entry_data = domain_data[entry_id]
     printer: LetraTagPrinter = entry_data["printer"]
     address: str = entry_data["address"]
+    entry: ConfigEntry = entry_data["entry"]
+    has_cutter = bool(entry.options.get(CONF_HAS_CUTTER, False))
 
     ble_device = bluetooth.async_ble_device_from_address(
         hass, address, connectable=True
@@ -106,7 +111,7 @@ def _get_printer(hass: HomeAssistant) -> tuple[LetraTagPrinter, BLEDevice]:
         raise HomeAssistantError(
             f"Printer {address} is not advertising — out of range or powered off"
         )
-    return printer, ble_device
+    return printer, ble_device, has_cutter
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -117,6 +122,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
         "printer": printer,
         "address": address,
+        "entry": entry,
     }
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -152,7 +158,7 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def handle_print_label(call: ServiceCall) -> None:
         """Handle the print_label service call."""
-        printer, ble_device = _get_printer(hass)
+        printer, ble_device, has_cutter = _get_printer(hass)
 
         text = call.data["text"]
         if not text.strip():
@@ -187,10 +193,12 @@ def _register_services(hass: HomeAssistant) -> None:
 
         img = await hass.async_add_executor_job(_render)
 
+        cut = call.data.get("cut", True) if has_cutter else None
         try:
             result = await printer.print_image(
                 img=img,
                 copies=call.data.get("copies", 1),
+                cut=cut,
                 ble_device=ble_device,
             )
             _LOGGER.info("Print result: %s", result)
@@ -199,7 +207,7 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def handle_print_image(call: ServiceCall) -> None:
         """Handle the print_image service call."""
-        printer, ble_device = _get_printer(hass)
+        printer, ble_device, has_cutter = _get_printer(hass)
 
         image_path = call.data["image_path"]
 
@@ -225,10 +233,12 @@ def _register_services(hass: HomeAssistant) -> None:
         except Exception as err:
             raise HomeAssistantError(f"Cannot open image: {err}") from err
 
+        cut = call.data.get("cut", True) if has_cutter else None
         try:
             result = await printer.print_image(
                 img=img,
                 copies=call.data.get("copies", 1),
+                cut=cut,
                 ble_device=ble_device,
             )
             _LOGGER.info("Print result: %s", result)

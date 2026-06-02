@@ -22,5 +22,18 @@
     "error": {
       "invalid_address": "Enter a valid Bluetooth address, for example AA:BB:CC:DD:EE:FF."
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "DYMO LetraTag options",
+        "data": {
+          "has_cutter": "Printer has a cutter"
+        },
+        "data_description": {
+          "has_cutter": "Enable for cutter-equipped models such as the LabelManager Connect. Leave off for the LetraTag 200B."
+        }
+      }
+    }
   }
 }

@@ -36,10 +36,16 @@ from homeassistant.components.bluetooth import (
     BluetoothServiceInfoBleak,
     async_discovered_service_info,
 )
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlow,
+)
 from homeassistant.const import CONF_ADDRESS, CONF_NAME
+from homeassistant.core import callback
 
-from .const import DOMAIN, ble_uuid, SERVICE_UUID
+from .const import CONF_HAS_CUTTER, DOMAIN, ble_uuid, SERVICE_UUID
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -57,6 +63,12 @@ class LetraTagConfigFlow(ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         """Initialize the config flow."""
         self._discovery_info: BluetoothServiceInfoBleak | None = None
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> LetraTagOptionsFlow:
+        """Create the options flow."""
+        return LetraTagOptionsFlow()
 
     async def async_step_bluetooth(
         self, discovery_info: BluetoothServiceInfoBleak
@@ -153,4 +165,27 @@ class LetraTagConfigFlow(ConfigFlow, domain=DOMAIN):
                 }
             ),
             errors=errors,
+        )
+
+
+class LetraTagOptionsFlow(OptionsFlow):
+    """Handle options for DYMO LetraTag."""
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Manage the printer options."""
+        if user_input is not None:
+            return self.async_create_entry(data=user_input)
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_HAS_CUTTER,
+                        default=self.config_entry.options.get(CONF_HAS_CUTTER, False),
+                    ): bool,
+                }
+            ),
         )

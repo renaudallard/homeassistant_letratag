@@ -18,6 +18,12 @@ print_label:
           min: 1
           max: 255
           mode: box
+    cut:
+      name: Cut
+      description: Cut the tape after printing. Only for cutter-equipped models with the cutter option enabled; ignored on the LetraTag 200B.
+      default: true
+      selector:
+        boolean:
     font_name:
       name: Font
       description: Font to use for rendering.
@@ -88,3 +94,9 @@ print_image:
           min: 1
           max: 255
           mode: box
+    cut:
+      name: Cut
+      description: Cut the tape after printing. Only for cutter-equipped models with the cutter option enabled; ignored on the LetraTag 200B.
+      default: true
+      selector:
+        boolean:

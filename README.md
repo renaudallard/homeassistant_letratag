@@ -96,6 +96,14 @@ The integration auto-discovers nearby LetraTag printers via BLE.
 
 **Manual setup:** Add Integration > search **DYMO LetraTag** > enter the Bluetooth address.
 
+### Options
+
+After adding the printer, click **Configure** on the integration to set:
+
+| Option | Default | Description |
+|--------|:-------:|-------------|
+| Printer has a cutter | off | Enable only for cutter-equipped models (such as the LabelManager Connect) so the `cut` service option is honored. The LetraTag 200B has no cutter; leave this off and it uses FormFeed. |
+
 ---
 
 ## Lovelace Card
@@ -187,6 +195,7 @@ Print a text label. Font size is auto-calculated to fill the tape height, or can
 |-----------|------|:--------:|---------|-------------|
 | `text` | string | **yes** | | Label text. Use `\n` for multiple lines |
 | `copies` | int | no | `1` | Number of copies (1 - 255) |
+| `cut` | bool | no | `true` | Cut after printing (cutter-equipped models only; needs the cutter option) |
 | `font_name` | string | no | | One of the 21 built-in fonts (see below) |
 | `font_size` | int | no | auto | Font size in pixels (8 - 64) |
 | `font_path` | string | no | | Path to a custom `.ttf` file (used when `font_name` is not set) |
@@ -224,6 +233,7 @@ Print an image file. The image is automatically resized to the tape height and c
 |-----------|------|:--------:|---------|-------------|
 | `image_path` | string | **yes** | | Path to image file (PNG, BMP, JPG, etc.) |
 | `copies` | int | no | `1` | Number of copies (1 - 255) |
+| `cut` | bool | no | `true` | Cut after printing (cutter-equipped models only; needs the cutter option) |
 
 ```yaml
 service: letratag.print_image
@@ -315,8 +325,10 @@ All commands are prefixed with `ESC` (`0x1B`):
 ### Print Sequence
 
 ```
-StartJob -> Copies -> PrintData -> FormFeed -> Status -> EndJob
+StartJob -> Copies -> PrintData -> FormFeed|Cut -> Status -> EndJob
 ```
+
+The terminator is FormFeed on the LetraTag 200B (no cutter) or the Cut command on cutter-equipped models.
 
 ### Communication Framing
 

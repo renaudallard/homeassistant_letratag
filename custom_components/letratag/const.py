@@ -28,6 +28,10 @@ from pathlib import Path
 
 DOMAIN = "letratag"
 
+# Config entry option: printer has a motorized cutter (LabelManager Connect
+# style). Off by default, which keeps the LetraTag 200B on FormFeed.
+CONF_HAS_CUTTER = "has_cutter"
+
 # BLE UUID templates - {UUID} replaced with device UUID (default "2b3d")
 DEFAULT_DEVICE_UUID = "2b3d"
 SERVICE_UUID = "be3dd650-{uuid}-42f1-99c1-f0f749dd0678"
@@ -51,6 +55,7 @@ CMD_FORM_FEED = ord("E")
 CMD_STATUS = ord("A")
 CMD_END = ord("Q")
 CMD_COPIES = ord("#")
+CMD_CUT = ord("p")
 
 # Protocol framing
 PREAMBLE = 0xFF
@@ -62,6 +67,10 @@ BODY_CHUNK_SIZE = 500
 BPP_MONO = 0x81  # 1-bit monochrome
 ALIGNMENT_CENTER = 0x02
 DEFAULT_JOB_ID = bytes([0x9A, 0x02, 0x00, 0x00])
+
+# Cut command values (cutter-equipped models only)
+CUT_TAPE = 48  # 0x30 = cut
+NO_CUT = 49  # 0x31 = don't cut
 
 # Label dimensions (12mm tape)
 LABEL_HEIGHT = 32  # pixels, matches the LetraTag Connect app print band
