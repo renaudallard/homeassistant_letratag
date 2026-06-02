@@ -43,6 +43,7 @@ from .const import (
     LABEL_HEIGHT,
     LABEL_HEIGHT_PADDED,
     RESPONSE_MESSAGES,
+    RESPONSE_PRINTING,
     RESPONSE_SUCCESS,
     RESPONSE_SUCCESS_LOW_BATTERY,
     PRINT_REPLY_UUID,
@@ -217,7 +218,10 @@ class LetraTagPrinter:
 
         msg = RESPONSE_MESSAGES.get(code, f"Unknown response ({code})")
 
-        if code in (RESPONSE_SUCCESS, RESPONSE_SUCCESS_LOW_BATTERY):
+        # The Genie firmware reports an accepted job with code 1 (Printing).
+        # The LetraTag Connect app treats that code as the terminal success
+        # state and disconnects, so it is a success here as well.
+        if code in (RESPONSE_SUCCESS, RESPONSE_PRINTING, RESPONSE_SUCCESS_LOW_BATTERY):
             _LOGGER.info("Print complete: %s", msg)
             return msg
 
