@@ -207,13 +207,13 @@ def _register_services(hass: HomeAssistant) -> None:
         image_path = call.data["image_path"]
 
         # Restrict to paths under HA config directory
-        config_dir = Path(hass.config.path())
+        config_dir = Path(hass.config.path()).resolve()
         try:
             resolved = Path(image_path).resolve()
-            if not str(resolved).startswith(str(config_dir.resolve())):
-                raise HomeAssistantError(f"Image path must be under {config_dir}")
         except (OSError, ValueError) as err:
             raise HomeAssistantError(f"Invalid image path: {err}") from err
+        if not resolved.is_relative_to(config_dir):
+            raise HomeAssistantError(f"Image path must be under {config_dir}")
 
         if not resolved.is_file():
             raise HomeAssistantError(f"Image not found: {image_path}")
