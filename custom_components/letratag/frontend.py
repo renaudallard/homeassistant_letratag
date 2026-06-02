@@ -46,6 +46,7 @@ _LOGGER = logging.getLogger(__name__)
 
 _FRONTEND_SETUP_KEY = "_frontend_setup"
 _RESOURCE_ID_KEY = "_frontend_resource_id"
+_STARTED_UNSUB_KEY = "_frontend_started_unsub"
 
 _STATIC_URL = f"/{DOMAIN}/letratag-card.js"
 _STATIC_PATH = Path(__file__).parent / "www" / "letratag-card.js"
@@ -130,6 +131,7 @@ async def async_setup_frontend(hass: HomeAssistant) -> None:
     # Defer Lovelace resource registration until HA is fully started.
     # During startup the ResourceStorageCollection may not be loaded yet.
     async def _register_resource(_event: Any = None) -> None:
+        domain_data.pop(_STARTED_UNSUB_KEY, None)
         resource_id = await _async_register_lovelace_resource(hass)
         if resource_id:
             domain_data[_RESOURCE_ID_KEY] = resource_id
@@ -137,7 +139,9 @@ async def async_setup_frontend(hass: HomeAssistant) -> None:
     if hass.state is CoreState.running:
         await _register_resource()
     else:
-        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, _register_resource)
+        domain_data[_STARTED_UNSUB_KEY] = hass.bus.async_listen_once(
+            EVENT_HOMEASSISTANT_STARTED, _register_resource
+        )
 
     domain_data[_FRONTEND_SETUP_KEY] = True
 
@@ -153,6 +157,12 @@ async def async_unload_frontend_if_last_entry(hass: HomeAssistant) -> None:
     if remaining:
         return
 
+    # Cancel a still-pending startup listener so it cannot re-register the
+    # resource after the integration is gone.
+    unsub = domain_data.get(_STARTED_UNSUB_KEY)
+    if callable(unsub):
+        unsub()
+
     resource_id = domain_data.get(_RESOURCE_ID_KEY)
     if isinstance(resource_id, str) and resource_id:
         await _async_unregister_lovelace_resource(hass, resource_id)
@@ -160,3 +170,4 @@ async def async_unload_frontend_if_last_entry(hass: HomeAssistant) -> None:
     # Clear setup flags so re-adding the integration re-registers the frontend
     domain_data.pop(_FRONTEND_SETUP_KEY, None)
     domain_data.pop(_RESOURCE_ID_KEY, None)
+    domain_data.pop(_STARTED_UNSUB_KEY, None)
