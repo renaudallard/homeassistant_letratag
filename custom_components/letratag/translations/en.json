@@ -18,6 +18,9 @@
     "abort": {
       "already_configured": "This device is already configured.",
       "no_discovery_info": "No discovery information was available. Please try again."
+    },
+    "error": {
+      "invalid_address": "Enter a valid Bluetooth address, for example AA:BB:CC:DD:EE:FF."
     }
   }
 }

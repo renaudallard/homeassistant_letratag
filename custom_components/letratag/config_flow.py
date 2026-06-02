@@ -27,6 +27,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any
 
 import voluptuous as vol
@@ -43,6 +44,9 @@ from .const import DOMAIN, ble_uuid, SERVICE_UUID
 _LOGGER = logging.getLogger(__name__)
 
 EXPECTED_SERVICE_UUID = ble_uuid(SERVICE_UUID)
+
+# Bluetooth addresses on the supported platforms are MAC formatted
+_ADDRESS_RE = re.compile(r"^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$")
 
 
 class LetraTagConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -105,16 +109,19 @@ class LetraTagConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             address = user_input[CONF_ADDRESS]
-            await self.async_set_unique_id(address)
-            self._abort_if_unique_id_configured()
+            if not _ADDRESS_RE.match(address):
+                errors[CONF_ADDRESS] = "invalid_address"
+            else:
+                await self.async_set_unique_id(address)
+                self._abort_if_unique_id_configured()
 
-            return self.async_create_entry(
-                title=user_input.get(CONF_NAME, "DYMO LetraTag"),
-                data={
-                    CONF_ADDRESS: address,
-                    CONF_NAME: user_input.get(CONF_NAME, "DYMO LetraTag"),
-                },
-            )
+                return self.async_create_entry(
+                    title=user_input.get(CONF_NAME, "DYMO LetraTag"),
+                    data={
+                        CONF_ADDRESS: address,
+                        CONF_NAME: user_input.get(CONF_NAME, "DYMO LetraTag"),
+                    },
+                )
 
         # Try to find already-discovered LetraTag devices
         discovered = async_discovered_service_info(self.hass, connectable=True)
