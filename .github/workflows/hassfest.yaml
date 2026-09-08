@@ -5,6 +5,9 @@ on:
   pull_request:
   schedule:
     - cron: "0 0 * * *"
+  # Callable, so the release gates on this check itself rather than on a
+  # copy of it that drifts out of step.
+  workflow_call:
 
 jobs:
   validate:

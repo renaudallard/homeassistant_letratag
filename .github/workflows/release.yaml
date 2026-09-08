@@ -12,8 +12,14 @@ permissions:
   contents: write
 
 jobs:
+  # There is no test suite here, but hassfest is the check that says the
+  # integration will load at all, so the release waits for it.
+  verify:
+    uses: ./.github/workflows/hassfest.yaml
+
   release:
     runs-on: ubuntu-latest
+    needs: [verify]
     steps:
       - uses: actions/checkout@v7
 
