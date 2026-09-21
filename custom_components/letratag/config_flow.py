@@ -45,14 +45,15 @@ from homeassistant.config_entries import (
 from homeassistant.const import CONF_ADDRESS, CONF_NAME
 from homeassistant.core import callback
 
-from .const import CONF_HAS_CUTTER, DOMAIN, SERVICE_UUID, ble_uuid
+from .const import CONF_HAS_CUTTER, DOMAIN, SERVICE_UUID, ble_uuid, normalize_address
 
 _LOGGER = logging.getLogger(__name__)
 
 EXPECTED_SERVICE_UUID = ble_uuid(SERVICE_UUID)
 
-# Bluetooth addresses on the supported platforms are MAC formatted
-_ADDRESS_RE = re.compile(r"^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$")
+# Bluetooth addresses on the supported platforms are MAC formatted, checked
+# once the input has been normalized
+_ADDRESS_RE = re.compile(r"^([0-9A-F]{2}:){5}[0-9A-F]{2}$")
 
 
 class LetraTagConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -120,7 +121,7 @@ class LetraTagConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            address = user_input[CONF_ADDRESS]
+            address = normalize_address(user_input[CONF_ADDRESS])
             if not _ADDRESS_RE.match(address):
                 errors[CONF_ADDRESS] = "invalid_address"
             else:

@@ -45,6 +45,16 @@ def ble_uuid(template: str, device_uuid: str = DEFAULT_DEVICE_UUID) -> str:
     return template.format(uuid=device_uuid)
 
 
+def normalize_address(address: str) -> str:
+    """Put a Bluetooth address in the form Home Assistant matches on.
+
+    The bluetooth stack indexes devices by the exact address string the
+    scanner reported, which is upper case and colon separated, so anything
+    typed by hand has to be brought to that form or it never matches.
+    """
+    return address.strip().replace("-", ":").upper()
+
+
 # ESC prefix for all print commands
 ESC = 0x1B
 
