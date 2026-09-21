@@ -164,30 +164,40 @@ def _register_services(hass: HomeAssistant) -> None:
         if not text.strip():
             raise HomeAssistantError("Text cannot be empty")
 
-        # Resolve font: font_name takes priority over font_path
+        # font_name takes priority over font_path
         font_path = call.data.get("font_path")
         font_name = call.data.get("font_name")
-        if font_name:
-            resolved = resolve_font(font_name)
-            if resolved:
-                font_path = resolved
-
         font_size = call.data.get("font_size")
         rotate = call.data.get("rotate", False)
 
-        # Render in executor to avoid blocking the event loop
+        # Render in executor to avoid blocking the event loop. Finding the
+        # font reads the filesystem, so it happens there too.
         def _render() -> Image.Image:
+            path = font_path
+            if font_name:
+                resolved = resolve_font(font_name)
+                if resolved is None:
+                    _LOGGER.warning(
+                        "Font %s is not installed on this host, using the default font",
+                        font_name,
+                    )
+                else:
+                    path = resolved
+            if path and not Path(path).is_file():
+                _LOGGER.warning(
+                    "Font file %s cannot be read, using the default font", path
+                )
             if rotate:
                 return render_text_banner(
                     text,
                     label_height=LABEL_HEIGHT,
-                    font_path=font_path,
+                    font_path=path,
                     font_size=font_size,
                 )
             return render_text(
                 text,
                 label_height=LABEL_HEIGHT,
-                font_path=font_path,
+                font_path=path,
                 font_size=font_size,
             )
 
