@@ -172,9 +172,44 @@ async def _async_get_printer(
     return printer, ble_device, has_cutter
 
 
+def _migrated_address(hass: HomeAssistant, entry: ConfigEntry) -> str:
+    """Return the entry's address, fixing up one stored in the wrong form.
+
+    An address typed in before it was normalized never matched what the
+    scanner reports, leaving the entry permanently offline. Put it right in
+    place, unless the printer has since been added again properly, in which
+    case this entry is a duplicate for the user to remove.
+    """
+    address: str = entry.data[CONF_ADDRESS]
+    normalized = normalize_address(address)
+    if normalized == address:
+        return address
+
+    taken = {
+        other.unique_id
+        for other in hass.config_entries.async_entries(DOMAIN)
+        if other.entry_id != entry.entry_id
+    }
+    if normalized in taken:
+        _LOGGER.warning(
+            "Config entry for %s is a duplicate of %s and can be removed",
+            address,
+            normalized,
+        )
+        return address
+
+    _LOGGER.info("Correcting stored printer address %s to %s", address, normalized)
+    hass.config_entries.async_update_entry(
+        entry,
+        data={**entry.data, CONF_ADDRESS: normalized},
+        unique_id=normalized,
+    )
+    return normalized
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up DYMO LetraTag from a config entry."""
-    address = entry.data[CONF_ADDRESS]
+    address = _migrated_address(hass, entry)
     printer = LetraTagPrinter(address)
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
