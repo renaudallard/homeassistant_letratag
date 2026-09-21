@@ -1,0 +1,9 @@
+# Home Assistant sorts its imports with the standard library, third party and
+# first party blocks each ordered as a single run, so plain "import x" lines sit
+# next to the "from x import y" lines of the same module. Keep the integration
+# on the same convention as the code it plugs into.
+[lint.isort]
+force-sort-within-sections = true
+known-first-party = ["homeassistant"]
+combine-as-imports = true
+split-on-trailing-comma = false

@@ -45,7 +45,7 @@ from homeassistant.config_entries import (
 from homeassistant.const import CONF_ADDRESS, CONF_NAME
 from homeassistant.core import callback
 
-from .const import CONF_HAS_CUTTER, DOMAIN, ble_uuid, SERVICE_UUID
+from .const import CONF_HAS_CUTTER, DOMAIN, SERVICE_UUID, ble_uuid
 
 _LOGGER = logging.getLogger(__name__)
 

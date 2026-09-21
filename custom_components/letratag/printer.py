@@ -42,20 +42,16 @@ from bleak_retry_connector import establish_connection
 from .const import (
     LABEL_HEIGHT,
     LABEL_HEIGHT_PADDED,
+    PRINT_REPLY_UUID,
+    PRINT_REQUEST_UUID,
     RESPONSE_MESSAGES,
     RESPONSE_PRINTING,
     RESPONSE_SUCCESS,
     RESPONSE_SUCCESS_LOW_BATTERY,
-    PRINT_REPLY_UUID,
-    PRINT_REQUEST_UUID,
     SERVICE_UUID,
     ble_uuid,
 )
-from .protocol import (
-    ProtocolStream,
-    build_print_stream,
-    parse_notification,
-)
+from .protocol import ProtocolStream, build_print_stream, parse_notification
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -207,10 +203,10 @@ class LetraTagPrinter:
             except PrintError:
                 raise
             except BleakError as err:
-                _LOGGER.error("BLE error: %s", err, exc_info=True)
+                _LOGGER.exception("BLE error")
                 raise PrintError(f"BLE error: {err}") from err
             except Exception as err:
-                _LOGGER.error("Unexpected error: %s", err, exc_info=True)
+                _LOGGER.exception("Unexpected error")
                 raise PrintError(f"Error: {err}") from err
             finally:
                 if client is not None and client.is_connected:

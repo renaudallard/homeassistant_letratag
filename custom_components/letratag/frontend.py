@@ -82,7 +82,7 @@ async def _async_register_lovelace_resource(hass: HomeAssistant) -> str | None:
             {"res_type": "module", "url": _STATIC_URL}
         )
         return item["id"]
-    except Exception as err:
+    except Exception as err:  # noqa: BLE001
         _LOGGER.warning("Unable to register Lovelace resource: %s", err)
         return None
 
@@ -99,7 +99,7 @@ async def _async_unregister_lovelace_resource(
         if resources is None:
             return
         await resources.async_delete_item(resource_id)
-    except Exception as err:
+    except Exception as err:  # noqa: BLE001
         _LOGGER.debug("Unable to remove Lovelace resource %s: %s", resource_id, err)
 
 
@@ -125,7 +125,7 @@ async def async_setup_frontend(hass: HomeAssistant) -> None:
             await hass.http.async_register_static_paths(
                 [StaticPathConfig(_STATIC_URL, str(_STATIC_PATH), True)]
             )
-        except Exception as err:
+        except Exception as err:  # noqa: BLE001
             _LOGGER.debug("Unable to register static path: %s", err)
 
     # Defer Lovelace resource registration until HA is fully started.

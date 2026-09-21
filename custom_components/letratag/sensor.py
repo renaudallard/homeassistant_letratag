@@ -117,7 +117,7 @@ async def _read_gatt_status(hass: HomeAssistant, address: str) -> dict[str, Any]
                         try:
                             data = await client.read_gatt_char(char.uuid)
                             result[key] = data.decode("utf-8", errors="replace").strip()
-                        except Exception as err:
+                        except Exception as err:  # noqa: BLE001
                             _LOGGER.debug(
                                 "Cannot read %s: %s",
                                 char.uuid,
@@ -133,7 +133,7 @@ async def _read_gatt_status(hass: HomeAssistant, address: str) -> dict[str, Any]
                 result["status_code"] = reply[2]
             if reply and len(reply) >= 32:
                 result.update(parse_status_info(reply))
-        except Exception as err:
+        except Exception as err:  # noqa: BLE001
             _LOGGER.debug("Status request failed: %s", err)
 
         result["online"] = True
@@ -183,7 +183,7 @@ async def async_setup_entry(
         # Parse manufacturer data if present (some models broadcast it)
         mfr_data = service_info.manufacturer_data
         if mfr_data:
-            for _company_id, raw in mfr_data.items():
+            for raw in mfr_data.values():
                 parsed = parse_manufacturer_data(raw)
                 if parsed:
                     status_data.update(parsed)
