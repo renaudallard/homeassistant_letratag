@@ -163,7 +163,7 @@ The printer auto-shuts down after approximately 5 minutes. Sensors are updated b
 
 1. **Printer powers on** - BLE advertisement detected
 2. **Advertisement data** - if the model broadcasts manufacturer data (battery, cassette, errors), sensors update immediately from the advertisement
-3. **GATT connection** - the integration connects once to read device info (model, firmware, serial) and the status command reply
+3. **GATT connection** - the integration connects once to read device info (model, firmware, serial) and the status command reply. A failed connect is retried on the next advertisement, at most once a minute
 4. **Printer shuts down** - sensors become unavailable
 5. **Next power-on** - cycle repeats
 

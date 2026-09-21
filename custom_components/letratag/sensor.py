@@ -76,6 +76,9 @@ _LOGGER = logging.getLogger(__name__)
 _BATTERY_MAP = {0: 10, 1: 40, 2: 70, 3: 100}
 _STATUS_CMD = bytes([0x1B, 0x41, 0x00])
 
+# How long to wait before trying the GATT read again after a failed connect
+_GATT_RETRY_SECONDS = 60
+
 # GATT Device Information Service characteristic UUIDs (fragments)
 _DIS_CHARS = {
     "00002a29": "manufacturer",
@@ -168,7 +171,11 @@ async def async_setup_entry(
     ]
     async_add_entities(entities)
 
-    fetched_this_session: dict[str, bool] = {"done": False}
+    # The GATT read only has to succeed once per power-on session, but a
+    # failed connect has to be retried or one miss leaves the sensors dark
+    # until the printer drops off the air. Advertisements arrive several
+    # times a second, so the retries are spaced out.
+    gatt_fetch: dict[str, Any] = {"done": False, "running": False, "retry_at": 0.0}
 
     def _update_entities() -> None:
         for entity in entities:
@@ -192,16 +199,28 @@ async def async_setup_entry(
                     break
 
         # Fetch GATT data once per online session
-        if not fetched_this_session["done"]:
-            fetched_this_session["done"] = True
+        if (
+            not gatt_fetch["done"]
+            and not gatt_fetch["running"]
+            and hass.loop.time() >= gatt_fetch["retry_at"]
+        ):
+            gatt_fetch["running"] = True
             _LOGGER.debug("Printer %s is online, fetching GATT data", address)
             hass.async_create_task(_fetch_gatt())
 
     async def _fetch_gatt() -> None:
-        data = await _read_gatt_status(hass, address)
-        if data:
-            status_data.update(data)
-            _update_entities()
+        # Hold off the next attempt up front, so a failure of any kind cannot
+        # turn the advertisement stream into a connect loop.
+        gatt_fetch["retry_at"] = hass.loop.time() + _GATT_RETRY_SECONDS
+        try:
+            data = await _read_gatt_status(hass, address)
+        finally:
+            gatt_fetch["running"] = False
+        if not data:
+            return
+        gatt_fetch["done"] = True
+        status_data.update(data)
+        _update_entities()
 
     @callback
     def _on_unavailable(
@@ -209,7 +228,8 @@ async def async_setup_entry(
     ) -> None:
         """Printer went offline."""
         _LOGGER.debug("Printer %s went offline", address)
-        fetched_this_session["done"] = False
+        gatt_fetch["done"] = False
+        gatt_fetch["retry_at"] = 0.0
         status_data.clear()
         _update_entities()
 
