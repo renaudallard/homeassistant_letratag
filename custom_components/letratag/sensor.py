@@ -252,6 +252,9 @@ class LetraTagSensorBase(SensorEntity):
     """Base class for LetraTag sensors."""
 
     _attr_has_entity_name = True
+    # Every value arrives from an advertisement or the GATT read, both of
+    # which write the state themselves
+    _attr_should_poll = False
 
     def __init__(
         self,
