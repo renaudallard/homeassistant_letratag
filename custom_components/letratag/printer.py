@@ -40,6 +40,7 @@ from bleak.exc import BleakError
 from bleak_retry_connector import establish_connection
 
 from .const import (
+    DEFAULT_DEVICE_UUID,
     LABEL_HEIGHT,
     LABEL_HEIGHT_PADDED,
     PRINT_REPLY_UUID,
@@ -66,7 +67,7 @@ class PrintError(Exception):
 class LetraTagPrinter:
     """BLE client for the DYMO LetraTag printer."""
 
-    def __init__(self, address: str, device_uuid: str = "2b3d") -> None:
+    def __init__(self, address: str, device_uuid: str = DEFAULT_DEVICE_UUID) -> None:
         self.address = address
         self._device_uuid = device_uuid
         self._service_uuid = ble_uuid(SERVICE_UUID, device_uuid)
