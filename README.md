@@ -66,6 +66,8 @@ Copy `custom_components/letratag/` into your Home Assistant configuration direct
       sensor.py
       services.yaml
       strings.json
+      brand/
+        *.png
       fonts/
         *.ttf
       translations/
@@ -179,7 +181,7 @@ The LT200B (firmware RUTEP20220628, REV-E) exposes:
 | Model | LT200B |
 | Firmware | RUTEP20220628 |
 | Hardware | REV-E |
-| Status | ESC R reply (3 bytes) |
+| Status | ESC A reply (3 bytes) |
 | Battery | Not available |
 | Cassette | Not available |
 
