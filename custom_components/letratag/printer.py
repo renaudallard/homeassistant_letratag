@@ -72,7 +72,12 @@ class LetraTagPrinter:
         self._service_uuid = ble_uuid(SERVICE_UUID, device_uuid)
         self._write_uuid = ble_uuid(PRINT_REQUEST_UUID, device_uuid)
         self._notify_uuid = ble_uuid(PRINT_REPLY_UUID, device_uuid)
-        self._print_lock = asyncio.Lock()
+        self._lock = asyncio.Lock()
+
+    @property
+    def lock(self) -> asyncio.Lock:
+        """Guard for BLE access, the printer takes one connection at a time."""
+        return self._lock
 
     async def _write_char(self, client: BleakClient, data: bytes | bytearray) -> None:
         """Write to the print request characteristic with retry.
@@ -159,7 +164,7 @@ class LetraTagPrinter:
         ble_device: BLEDevice,
     ) -> str:
         """Connect, send a protocol stream, wait for response, disconnect."""
-        async with self._print_lock:
+        async with self._lock:
             response_event = asyncio.Event()
             last_response: list[int | None] = [None]
 

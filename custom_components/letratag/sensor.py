@@ -69,6 +69,7 @@ from .const import (
     TAPE_SIZES,
     ble_uuid,
 )
+from .printer import LetraTagPrinter
 from .protocol import parse_manufacturer_data, parse_status_info
 
 _LOGGER = logging.getLogger(__name__)
@@ -159,6 +160,7 @@ async def async_setup_entry(
     """Set up DYMO LetraTag sensors from a config entry."""
     address = entry.data[CONF_ADDRESS]
     name = entry.data.get(CONF_NAME, "DYMO LetraTag")
+    printer: LetraTagPrinter = hass.data[DOMAIN][entry.entry_id]["printer"]
 
     # Shared state dict fed by both advertisement and GATT data
     status_data: dict[str, Any] = {}
@@ -213,7 +215,10 @@ async def async_setup_entry(
         # turn the advertisement stream into a connect loop.
         gatt_fetch["retry_at"] = hass.loop.time() + _GATT_RETRY_SECONDS
         try:
-            data = await _read_gatt_status(hass, address)
+            # The printer takes one connection at a time, so share the lock
+            # with the print path and never read status mid job.
+            async with printer.lock:
+                data = await _read_gatt_status(hass, address)
         finally:
             gatt_fetch["running"] = False
         if not data:
