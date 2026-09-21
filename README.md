@@ -248,6 +248,8 @@ data:
 
 Text is rendered directly at the printer's native resolution (32 pixels for 12mm tape) using Pillow TrueType font rendering. Each pixel column is doubled to match the printer's stepper motor cadence. No screenshots, no bitmap scaling.
 
+A single job carries at most 8186 columns, roughly 1.2 m of tape, the same limit the official app applies. Text or an image that would print longer is cut off at that point and a warning is logged.
+
 **Built-in fonts** (selected for clarity at 32px):
 
 | Name | Style | Best for |
@@ -353,6 +355,7 @@ Commands are concatenated into a body, then wrapped:
 - 32 pixels per column for 12mm tape (4 bytes per column)
 - Columns are byte-reversed in 8-bit groups (swapBits) then packed MSB-first
 - Each column is doubled (enlarge) to match the printer's stepper motor cadence
+- Padded to at least 150 columns, and cut to at most 8186
 
 ### Manufacturer Data (Advertisement)
 

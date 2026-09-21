@@ -49,7 +49,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-from .const import LABEL_HEIGHT, MIN_RASTER_LENGTH
+from .const import LABEL_HEIGHT, MAX_RASTER_LENGTH, MIN_RASTER_LENGTH
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -412,7 +412,7 @@ def prepare_print_data(
     img: Image.Image,
     label_height: int = LABEL_HEIGHT,
     min_raster_length: int = MIN_RASTER_LENGTH,
-    max_width: int | None = None,
+    max_width: int | None = MAX_RASTER_LENGTH,
 ) -> tuple[int, bytes]:
     """Convert a PIL Image to print-ready data.
 
@@ -445,6 +445,11 @@ def prepare_print_data(
     rasterlines = adjust_padding(rasterlines, padded_height, min_raster_length)
 
     if max_width and len(rasterlines) > max_width:
+        _LOGGER.warning(
+            "Label is %d rasterlines, cutting it to the %d the printer accepts",
+            len(rasterlines),
+            max_width,
+        )
         rasterlines = rasterlines[:max_width]
 
     width = len(rasterlines)

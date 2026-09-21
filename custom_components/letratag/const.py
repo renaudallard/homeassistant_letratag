@@ -86,6 +86,9 @@ NO_CUT = 49  # 0x31 = don't cut
 LABEL_HEIGHT = 32  # pixels, matches the LetraTag Connect app print band
 LABEL_HEIGHT_PADDED = 32  # bits (4 bytes per column)
 MIN_RASTER_LENGTH = 150  # minimum rasterlines (columns) with padding
+# Longest job the printer takes, matching limitLabelWidth in the app. At the
+# 0.149mm dot pitch that is about 1.2m of tape.
+MAX_RASTER_LENGTH = 8186
 
 # Tape sizes by cassette ID
 TAPE_SIZES = {
