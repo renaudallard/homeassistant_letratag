@@ -76,16 +76,25 @@ def _find_system_font() -> str | None:
     return None
 
 
+def _resolve_font_path(font_path: str | None) -> str | None:
+    """Pick the font file to render with.
+
+    A caller supplied path is only used when it really is a readable file.
+    Measuring and drawing then agree on the same font, instead of the
+    measuring passes raising on a bad path while drawing quietly fell back.
+    """
+    if font_path and Path(font_path).is_file():
+        return font_path
+    return _find_system_font()
+
+
 def _load_font(
     font_path: str | None, font_size: int
 ) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     """Load a TrueType font, falling back to system fonts."""
-    if font_path and Path(font_path).is_file():
-        return ImageFont.truetype(font_path, font_size)
-
-    system_font = _find_system_font()
-    if system_font:
-        return ImageFont.truetype(system_font, font_size)
+    resolved = _resolve_font_path(font_path)
+    if resolved:
+        return ImageFont.truetype(resolved, font_size)
 
     _LOGGER.warning("No TrueType font found, using Pillow default bitmap font")
     return ImageFont.load_default()
@@ -105,7 +114,7 @@ def _auto_font_size(
     available height. The ink box still has to fit, so descenders never clip.
     """
     best = 8
-    system_font = font_path or _find_system_font()
+    system_font = _resolve_font_path(font_path)
     if not system_font:
         return best
 
@@ -125,7 +134,7 @@ def _auto_font_size_by_width(
 ) -> int:
     """Find the largest font size where text width fits within max_width."""
     best = 8
-    system_font = font_path or _find_system_font()
+    system_font = _resolve_font_path(font_path)
     if not system_font:
         return best
 
@@ -234,7 +243,7 @@ def render_text_banner(
 
     # Find the widest character to determine font size by measuring each
     if font_size is None:
-        system_font = font_path or _find_system_font()
+        system_font = _resolve_font_path(font_path)
         if system_font:
             probe = ImageFont.truetype(system_font, usable)
             widest_w: float = 0
