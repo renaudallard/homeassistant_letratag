@@ -43,11 +43,14 @@ class LetraTagCard extends HTMLElement {
     this._config = {};
     this._hass = null;
     this._sensorSignature = null;
+    this._printerSignature = null;
+    this._printerList = [];
     this._state = {
       text: "",
       fontName: "DejaVu Sans Bold",
       fontSize: 0, // 0 = auto
       rotate: false,
+      address: null, // which printer, when more than one is configured
       copies: 1,
       printing: false,
       message: "",
@@ -75,6 +78,7 @@ class LetraTagCard extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
+    this._updatePrinters();
     this._updateSensors();
   }
 
@@ -132,13 +136,76 @@ class LetraTagCard extends HTMLElement {
     this._updatePreview();
   }
 
+  _printers() {
+    // Every printer is a device of this integration, and its address is the
+    // device identifier, so the card never has to be told a MAC.
+    const devices = this._hass.devices || {};
+    return Object.values(devices)
+      .map((d) => {
+        const identifier = (d.identifiers || []).find(([domain]) => domain === DOMAIN);
+        return identifier
+          ? {
+              deviceId: d.id,
+              address: identifier[1],
+              name: d.name_by_user || d.name || identifier[1],
+            }
+          : null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  _selectedDeviceId() {
+    const printer = this._printerList.find((p) => p.address === this._state.address);
+    return printer ? printer.deviceId : null;
+  }
+
+  _updatePrinters() {
+    if (!this._hass || !this.shadowRoot) return;
+    const field = this.shadowRoot.getElementById("printer-field");
+    const select = this.shadowRoot.getElementById("printer-select");
+    if (!field || !select) return;
+
+    const printers = this._printers();
+    this._printerList = printers;
+
+    const signature = printers.map((p) => `${p.address}\u0000${p.name}`).join("\u0001");
+    const selectable =
+      !printers.length || printers.some((p) => p.address === this._state.address);
+    if (signature === this._printerSignature && selectable) return;
+    this._printerSignature = signature;
+
+    if (!selectable) {
+      this._state.address = printers[0].address;
+      this._sensorSignature = null;
+    }
+
+    select.textContent = "";
+    for (const printer of printers) {
+      const option = document.createElement("option");
+      option.value = printer.address;
+      option.textContent = printer.name;
+      select.appendChild(option);
+    }
+    select.value = this._state.address || "";
+
+    // With a single printer there is nothing to choose, so stay out of the way
+    field.classList.toggle("hidden", printers.length < 2);
+  }
+
   _sensorEntityIds() {
     // Ask the entity registry which entities this integration owns. Matching
     // on the entity id instead meant a renamed device hid the sensors and an
     // unrelated entity with "dymo" in its id showed up as one of ours.
     const registry = this._hass.entities || {};
+    const deviceId = this._selectedDeviceId();
     return Object.keys(registry)
-      .filter((eid) => eid.startsWith("sensor.") && registry[eid].platform === DOMAIN)
+      .filter(
+        (eid) =>
+          eid.startsWith("sensor.") &&
+          registry[eid].platform === DOMAIN &&
+          (!deviceId || registry[eid].device_id === deviceId)
+      )
       .sort();
   }
 
@@ -250,6 +317,9 @@ class LetraTagCard extends HTMLElement {
     };
     if (this._state.fontSize > 0) {
       data.font_size = this._state.fontSize;
+    }
+    if (this._state.address) {
+      data.address = this._state.address;
     }
 
     try {
@@ -628,6 +698,8 @@ class LetraTagCard extends HTMLElement {
           transition: color 0.2s;
         }
 
+        .hidden { display: none; }
+
         .message.success { color: var(--success-color); }
         .message.error { color: var(--error-color); }
       </style>
@@ -654,6 +726,11 @@ class LetraTagCard extends HTMLElement {
           ></textarea>
 
           <div class="controls">
+            <div class="field hidden" id="printer-field" style="grid-column: 1 / -1">
+              <label for="printer-select">Printer</label>
+              <select id="printer-select"></select>
+            </div>
+
             <div class="field">
               <label>Font</label>
               <select id="font-select">
@@ -700,8 +777,10 @@ class LetraTagCard extends HTMLElement {
     const titleEl = this.shadowRoot.getElementById("card-title");
     if (titleEl) titleEl.textContent = this._config.title || "DYMO LetraTag";
 
-    // The chip row went out with the old DOM, so rebuild it from scratch
+    // Both rows went out with the old DOM, so rebuild them from scratch
+    this._printerSignature = null;
     this._sensorSignature = null;
+    this._updatePrinters();
     this._updateSensors();
   }
 
@@ -736,6 +815,13 @@ class LetraTagCard extends HTMLElement {
     // Text input
     $("text-input").addEventListener("input", (e) => {
       this._updateState("text", e.target.value);
+    });
+
+    // Printer select, only on screen when there is more than one
+    $("printer-select").addEventListener("change", (e) => {
+      this._state.address = e.target.value;
+      this._sensorSignature = null;
+      this._updateSensors();
     });
 
     // Font select
