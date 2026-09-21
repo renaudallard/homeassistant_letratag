@@ -450,20 +450,12 @@ def prepare_print_data(
         (width, print_data) where width is the number of rasterlines
         and print_data is the packed byte data.
     """
+    # Columns come out label_height tall, which the protocol requires to be a
+    # whole number of bytes: 32 rows, 4 bytes, for 12mm tape.
     rasterlines = image_to_rasterlines(img, label_height)
-
-    # Pad each column to 32 elements (4 full bytes) before swapBits.
-    # The printer expects 32-bit columns (height=32 in protocol).
-    # Without padding, the short last chunk (2 bits) causes misaligned
-    # byte groups after swapBits.
-    padded_height = ((label_height + 7) // 8) * 8
-    for i, col in enumerate(rasterlines):
-        if len(col) < padded_height:
-            rasterlines[i] = col + [0] * (padded_height - len(col))
-
     rasterlines = swap_bits(rasterlines)
     rasterlines = enlarge(rasterlines)
-    rasterlines = adjust_padding(rasterlines, padded_height, min_raster_length)
+    rasterlines = adjust_padding(rasterlines, label_height, min_raster_length)
 
     if max_width and len(rasterlines) > max_width:
         _LOGGER.warning(
@@ -476,37 +468,3 @@ def prepare_print_data(
     width = len(rasterlines)
     print_data = rasterlines_to_bytes(rasterlines)
     return width, print_data
-
-
-def render_and_prepare(
-    text: str,
-    label_height: int = LABEL_HEIGHT,
-    font_path: str | None = None,
-    font_size: int | None = None,
-    max_width: int | None = None,
-    rotate: bool = False,
-) -> tuple[int, bytes]:
-    """Render text and prepare print data in one step.
-
-    Args:
-        rotate: If True, render in banner mode (90 degree rotation).
-
-    Returns:
-        (width, print_data) ready for build_print_stream().
-    """
-    if rotate:
-        img = render_text_banner(
-            text,
-            label_height=label_height,
-            font_path=font_path,
-            font_size=font_size,
-        )
-    else:
-        img = render_text(
-            text,
-            label_height=label_height,
-            font_path=font_path,
-            font_size=font_size,
-            max_width=max_width,
-        )
-    return prepare_print_data(img, label_height)

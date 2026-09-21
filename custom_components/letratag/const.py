@@ -37,7 +37,6 @@ DEFAULT_DEVICE_UUID = "2b3d"
 SERVICE_UUID = "be3dd650-{uuid}-42f1-99c1-f0f749dd0678"
 PRINT_REQUEST_UUID = "be3dd651-{uuid}-42f1-99c1-f0f749dd0678"
 PRINT_REPLY_UUID = "be3dd652-{uuid}-42f1-99c1-f0f749dd0678"
-PRINT_SHORT_CMD_UUID = "be3dd653-{uuid}-42f1-99c1-f0f749dd0678"
 
 
 def ble_uuid(template: str, device_uuid: str = DEFAULT_DEVICE_UUID) -> str:
