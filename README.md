@@ -141,7 +141,7 @@ The resource is automatically removed when the last LetraTag config entry is unl
 - **Visual editor** - configure title, default font and default size from the dashboard card editor
 - **Normal / Banner toggle** - switch between horizontal text and 90 degree banner mode
 - **Copies** - print multiple copies of a label
-- **Sensor display** - shows available sensors (unavailable sensors are hidden)
+- **Sensor display** - shows the printer's sensors, found through the entity registry so renaming the device does not hide them (unavailable sensors are hidden)
 - **Responsive** - adapts to any column width, stacks controls on narrow screens
 
 ---

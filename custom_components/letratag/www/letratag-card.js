@@ -6,6 +6,10 @@
  * and a live label preview.
  */
 
+// Integration domain, used for the service call and to pick out this
+// integration's entities in the registry.
+const DOMAIN = "letratag";
+
 // Built-in font display names, shared by the dropdown and config validation.
 // Must stay in sync with FONT_MAP in const.py and the _cssFontFamily map.
 const FONTS = [
@@ -128,20 +132,23 @@ class LetraTagCard extends HTMLElement {
     this._updatePreview();
   }
 
+  _sensorEntityIds() {
+    // Ask the entity registry which entities this integration owns. Matching
+    // on the entity id instead meant a renamed device hid the sensors and an
+    // unrelated entity with "dymo" in its id showed up as one of ours.
+    const registry = this._hass.entities || {};
+    return Object.keys(registry)
+      .filter((eid) => eid.startsWith("sensor.") && registry[eid].platform === DOMAIN)
+      .sort();
+  }
+
   _updateSensors() {
     if (!this._hass || !this.shadowRoot) return;
     const statusEl = this.shadowRoot.getElementById("sensor-status");
     if (!statusEl) return;
 
-    // Find letratag sensors
-    const entities = Object.keys(this._hass.states).filter((e) =>
-      e.startsWith("sensor.") && (
-        e.includes("letratag") || e.includes("dymo")
-      )
-    );
-
     statusEl.textContent = "";
-    for (const eid of entities) {
+    for (const eid of this._sensorEntityIds()) {
       const s = this._hass.states[eid];
       if (!s || s.state === "unavailable" || s.state === "unknown") continue;
       const name = s.attributes.friendly_name || eid.split(".")[1];
@@ -236,7 +243,7 @@ class LetraTagCard extends HTMLElement {
     }
 
     try {
-      await this._hass.callService("letratag", "print_label", data);
+      await this._hass.callService(DOMAIN, "print_label", data);
       this._state.message = "Print sent successfully";
       this._state.messageType = "success";
     } catch (err) {
