@@ -42,6 +42,7 @@ class LetraTagCard extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this._config = {};
     this._hass = null;
+    this._sensorSignature = null;
     this._state = {
       text: "",
       fontName: "DejaVu Sans Bold",
@@ -74,7 +75,6 @@ class LetraTagCard extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
-    // Update sensor displays if entities configured
     this._updateSensors();
   }
 
@@ -147,15 +147,25 @@ class LetraTagCard extends HTMLElement {
     const statusEl = this.shadowRoot.getElementById("sensor-status");
     if (!statusEl) return;
 
+    const shown = this._sensorEntityIds()
+      .map((eid) => this._hass.states[eid])
+      .filter((s) => s && s.state !== "unavailable" && s.state !== "unknown");
+
+    // Home Assistant hands the card a new hass on every state change in the
+    // whole instance, so only touch the DOM when a chip would actually differ.
+    const signature = shown
+      .map((s) => `${s.entity_id}\u0000${s.state}\u0000${s.attributes.friendly_name}\u0000${s.attributes.icon}`)
+      .join("\u0001");
+    if (signature === this._sensorSignature) return;
+    this._sensorSignature = signature;
+
     statusEl.textContent = "";
-    for (const eid of this._sensorEntityIds()) {
-      const s = this._hass.states[eid];
-      if (!s || s.state === "unavailable" || s.state === "unknown") continue;
-      const name = s.attributes.friendly_name || eid.split(".")[1];
+    for (const s of shown) {
+      const name = s.attributes.friendly_name || s.entity_id.split(".")[1];
       const icon = s.attributes.icon || "mdi:printer";
       const chip = document.createElement("span");
       chip.className = "sensor-chip";
-      chip.title = eid;
+      chip.title = s.entity_id;
       const haIcon = document.createElement("ha-icon");
       haIcon.setAttribute("icon", icon);
       chip.appendChild(haIcon);
@@ -689,6 +699,10 @@ class LetraTagCard extends HTMLElement {
     // Set title via textContent to prevent XSS
     const titleEl = this.shadowRoot.getElementById("card-title");
     if (titleEl) titleEl.textContent = this._config.title || "DYMO LetraTag";
+
+    // The chip row went out with the old DOM, so rebuild it from scratch
+    this._sensorSignature = null;
+    this._updateSensors();
   }
 
   _syncControls() {
