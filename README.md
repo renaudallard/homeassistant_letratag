@@ -189,6 +189,10 @@ Other models or firmware versions may expose additional data.
 
 ## Services
 
+With a single printer configured the services print on it and the `address`
+parameter can be left out. With several, `address` says which one to use, and
+a call without it fails rather than picking one at random.
+
 ### `letratag.print_label`
 
 Print a text label. Font size is auto-calculated to fill the tape height, or can be set explicitly (minimum 8px).
@@ -196,6 +200,7 @@ Print a text label. Font size is auto-calculated to fill the tape height, or can
 | Parameter | Type | Required | Default | Description |
 |-----------|------|:--------:|---------|-------------|
 | `text` | string | **yes** | | Label text. Use `\n` for multiple lines |
+| `address` | string | no | | Bluetooth address of the printer, only needed with more than one configured |
 | `copies` | int | no | `1` | Number of copies (1 - 255) |
 | `cut` | bool | no | `true` | Cut after printing (cutter-equipped models only; needs the cutter option) |
 | `font_name` | string | no | | One of the 21 built-in fonts (see below) |
@@ -234,6 +239,7 @@ Print an image file. The image is automatically resized to the tape height and c
 | Parameter | Type | Required | Default | Description |
 |-----------|------|:--------:|---------|-------------|
 | `image_path` | string | **yes** | | Path to image file (PNG, BMP, JPG, etc.) |
+| `address` | string | no | | Bluetooth address of the printer, only needed with more than one configured |
 | `copies` | int | no | `1` | Number of copies (1 - 255) |
 | `cut` | bool | no | `true` | Cut after printing (cutter-equipped models only; needs the cutter option) |
 

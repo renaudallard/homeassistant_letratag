@@ -51,6 +51,7 @@ from .const import (
     LABEL_HEIGHT,
     SERVICE_PRINT_IMAGE,
     SERVICE_PRINT_LABEL,
+    normalize_address,
     resolve_font,
 )
 from .frontend import async_setup_frontend, async_unload_frontend_if_last_entry
@@ -64,6 +65,7 @@ PLATFORMS = [Platform.SENSOR]
 PRINT_LABEL_SCHEMA = vol.Schema(
     {
         vol.Required("text"): cv.string,
+        vol.Optional("address"): cv.string,
         vol.Optional("copies", default=1): vol.All(
             vol.Coerce(int), vol.Range(min=1, max=255)
         ),
@@ -78,6 +80,7 @@ PRINT_LABEL_SCHEMA = vol.Schema(
 PRINT_IMAGE_SCHEMA = vol.Schema(
     {
         vol.Required("image_path"): cv.string,
+        vol.Optional("address"): cv.string,
         vol.Optional("copies", default=1): vol.All(
             vol.Coerce(int), vol.Range(min=1, max=255)
         ),
@@ -86,30 +89,50 @@ PRINT_IMAGE_SCHEMA = vol.Schema(
 )
 
 
-def _get_printer(hass: HomeAssistant) -> tuple[LetraTagPrinter, BLEDevice, bool]:
-    """Get the first configured printer, its BLE device and cutter flag."""
-    domain_data = hass.data.get(DOMAIN, {})
+def _get_printer(
+    hass: HomeAssistant, address: str | None = None
+) -> tuple[LetraTagPrinter, BLEDevice, bool]:
+    """Get a configured printer, its BLE device and cutter flag.
 
-    # Find first config entry key (skip internal keys starting with _)
-    entry_id = next(
-        (k for k in domain_data if not k.startswith("_")),
-        None,
-    )
-    if entry_id is None:
+    With a single printer the address can be left out. With several there is
+    no sensible default, so the caller has to say which one.
+    """
+    # Config entry ids never start with an underscore, the internal keys do
+    entries = [
+        data
+        for key, data in hass.data.get(DOMAIN, {}).items()
+        if not key.startswith("_")
+    ]
+    if not entries:
         raise HomeAssistantError("No DYMO LetraTag printer configured")
 
-    entry_data = domain_data[entry_id]
+    if address is None:
+        if len(entries) > 1:
+            configured = ", ".join(sorted(data["address"] for data in entries))
+            raise HomeAssistantError(
+                f"Several printers are configured ({configured}), "
+                "set the address option to choose one"
+            )
+        entry_data = entries[0]
+    else:
+        wanted = normalize_address(address)
+        matching = [data for data in entries if data["address"] == wanted]
+        if not matching:
+            raise HomeAssistantError(f"No DYMO LetraTag printer configured at {wanted}")
+        entry_data = matching[0]
+
     printer: LetraTagPrinter = entry_data["printer"]
-    address: str = entry_data["address"]
+    printer_address: str = entry_data["address"]
     entry: ConfigEntry = entry_data["entry"]
     has_cutter = bool(entry.options.get(CONF_HAS_CUTTER, False))
 
     ble_device = bluetooth.async_ble_device_from_address(
-        hass, address, connectable=True
+        hass, printer_address, connectable=True
     )
     if ble_device is None:
         raise HomeAssistantError(
-            f"Printer {address} is not advertising — out of range or powered off"
+            f"Printer {printer_address} is not advertising, "
+            "it is out of range or powered off"
         )
     return printer, ble_device, has_cutter
 
@@ -158,7 +181,7 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def handle_print_label(call: ServiceCall) -> None:
         """Handle the print_label service call."""
-        printer, ble_device, has_cutter = _get_printer(hass)
+        printer, ble_device, has_cutter = _get_printer(hass, call.data.get("address"))
 
         text = call.data["text"]
         if not text.strip():
@@ -217,7 +240,7 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def handle_print_image(call: ServiceCall) -> None:
         """Handle the print_image service call."""
-        printer, ble_device, has_cutter = _get_printer(hass)
+        printer, ble_device, has_cutter = _get_printer(hass, call.data.get("address"))
 
         image_path = call.data["image_path"]
 

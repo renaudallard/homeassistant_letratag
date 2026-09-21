@@ -9,6 +9,13 @@ print_label:
       example: "Hello World"
       selector:
         text:
+    address:
+      name: Printer
+      description: Bluetooth address of the printer to use. Only needed when more than one printer is configured.
+      required: false
+      example: "AA:BB:CC:DD:EE:FF"
+      selector:
+        text:
     copies:
       name: Copies
       description: Number of copies to print.
@@ -83,6 +90,13 @@ print_image:
       description: Path to the image file to print.
       required: true
       example: "/config/labels/my_label.png"
+      selector:
+        text:
+    address:
+      name: Printer
+      description: Bluetooth address of the printer to use. Only needed when more than one printer is configured.
+      required: false
+      example: "AA:BB:CC:DD:EE:FF"
       selector:
         text:
     copies:
