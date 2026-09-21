@@ -101,7 +101,7 @@ def _load_font(
 
 
 def _auto_font_size(
-    text: str,
+    lines: list[str],
     font_path: str | None,
     max_height: int,
 ) -> int:
@@ -112,6 +112,10 @@ def _auto_font_size(
     to max_height as a point size left a quarter of the tape unused, so the
     ceiling is 3x max_height to let the text grow until its ink box fills the
     available height. The ink box still has to fit, so descenders never clip.
+
+    Every line is measured. A short line with descenders has a taller ink box
+    than a long line of capitals, so picking the size off the longest line
+    alone pushed the other lines past the bottom of the tape.
     """
     best = 8
     system_font = _resolve_font_path(font_path)
@@ -120,8 +124,8 @@ def _auto_font_size(
 
     for size in range(max_height * 3, 7, -1):
         font = ImageFont.truetype(system_font, size)
-        bbox = font.getbbox(text)
-        text_height = bbox[3] - bbox[1]
+        boxes = [font.getbbox(line) for line in lines]
+        text_height = max(box[3] - box[1] for box in boxes)
         if text_height <= max_height:
             return size
     return best
@@ -175,8 +179,7 @@ def render_text(
 
     if font_size is None:
         # Auto-size: find largest font that fits one line height
-        sample = max(lines, key=len)
-        font_size = _auto_font_size(sample, font_path, line_height)
+        font_size = _auto_font_size(lines, font_path, line_height)
 
     font = _load_font(font_path, font_size)
 
