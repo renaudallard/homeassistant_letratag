@@ -44,6 +44,7 @@ Banner mode (rotate=True):
 
 from __future__ import annotations
 
+from collections.abc import Callable
 import logging
 from pathlib import Path
 
@@ -52,6 +53,9 @@ from PIL import Image, ImageDraw, ImageFont
 from .const import LABEL_HEIGHT, MAX_RASTER_LENGTH, MIN_RASTER_LENGTH
 
 _LOGGER = logging.getLogger(__name__)
+
+# Smallest size offered by the services and the card
+_MIN_FONT_SIZE = 8
 
 # Font search paths, in priority order
 _FONT_PATHS = [
@@ -100,6 +104,25 @@ def _load_font(
     return ImageFont.load_default()
 
 
+def _largest_fitting(fits: Callable[[int], bool], ceiling: int) -> int:
+    """Bisect for the largest point size the caller still accepts.
+
+    Glyphs grow with the point size, so walking down from the ceiling one
+    size at a time only ever reloads the face to reach the same answer a
+    bisection finds in a handful of steps.
+    """
+    lo, hi = _MIN_FONT_SIZE, ceiling
+    best = _MIN_FONT_SIZE
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        if fits(mid):
+            best = mid
+            lo = mid + 1
+        else:
+            hi = mid - 1
+    return best
+
+
 def _auto_font_size(
     lines: list[str],
     font_path: str | None,
@@ -117,18 +140,16 @@ def _auto_font_size(
     than a long line of capitals, so picking the size off the longest line
     alone pushed the other lines past the bottom of the tape.
     """
-    best = 8
     system_font = _resolve_font_path(font_path)
     if not system_font:
-        return best
+        return _MIN_FONT_SIZE
 
-    for size in range(max_height * 3, 7, -1):
+    def fits(size: int) -> bool:
         font = ImageFont.truetype(system_font, size)
         boxes = [font.getbbox(line) for line in lines]
-        text_height = max(box[3] - box[1] for box in boxes)
-        if text_height <= max_height:
-            return size
-    return best
+        return max(box[3] - box[1] for box in boxes) <= max_height
+
+    return _largest_fitting(fits, max_height * 3)
 
 
 def _auto_font_size_by_width(
@@ -137,18 +158,15 @@ def _auto_font_size_by_width(
     max_width: int,
 ) -> int:
     """Find the largest font size where text width fits within max_width."""
-    best = 8
     system_font = _resolve_font_path(font_path)
     if not system_font:
-        return best
+        return _MIN_FONT_SIZE
 
-    for size in range(max_width * 2, 7, -1):
-        font = ImageFont.truetype(system_font, size)
-        bbox = font.getbbox(text)
-        text_width = bbox[2] - bbox[0]
-        if text_width <= max_width:
-            return size
-    return best
+    def fits(size: int) -> bool:
+        bbox = ImageFont.truetype(system_font, size).getbbox(text)
+        return bbox[2] - bbox[0] <= max_width
+
+    return _largest_fitting(fits, max_width * 2)
 
 
 def render_text(
@@ -261,7 +279,7 @@ def render_text_banner(
                     widest_ch = ch
             font_size = _auto_font_size_by_width(widest_ch, font_path, usable)
         else:
-            font_size = 8
+            font_size = _MIN_FONT_SIZE
 
     font = _load_font(font_path, font_size)
 
