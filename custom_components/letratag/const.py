@@ -124,7 +124,8 @@ RESPONSE_MESSAGES = {
     RESPONSE_CUTTER_JAM: "Cutter jam",
 }
 
-# Error codes from status info
+# Error conditions from status info. The field is a bitmask, so several of
+# these can be reported at once.
 ERROR_CODES = {
     0: "No error",
     1: "Power dip",
@@ -132,6 +133,7 @@ ERROR_CODES = {
     4: "API abort",
     8: "Communication error",
     16: "Underrun",
+    32: "Spare",
     64: "Label jam",
     128: "Cutter jam",
     256: "No cassette",
@@ -139,6 +141,19 @@ ERROR_CODES = {
     1024: "Cutter blade stuck",
     2048: "Power too low",
 }
+
+_KNOWN_ERROR_BITS = sum(ERROR_CODES)
+
+
+def describe_error(code: int) -> str:
+    """Name every condition set in an error bitmask."""
+    if not code:
+        return ERROR_CODES[0]
+    names = [name for bit, name in ERROR_CODES.items() if bit and code & bit]
+    if remainder := code & ~_KNOWN_ERROR_BITS:
+        names.append(f"unknown bits {remainder:#x}")
+    return ", ".join(names)
+
 
 # Service names
 SERVICE_PRINT_LABEL = "print_label"

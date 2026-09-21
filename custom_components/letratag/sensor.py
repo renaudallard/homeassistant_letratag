@@ -63,11 +63,11 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
     DOMAIN,
-    ERROR_CODES,
     PRINT_REPLY_UUID,
     PRINT_REQUEST_UUID,
     TAPE_SIZES,
     ble_uuid,
+    describe_error,
 )
 from .printer import LetraTagPrinter
 from .protocol import parse_manufacturer_data, parse_status_info
@@ -384,7 +384,7 @@ class LetraTagStatusSensor(LetraTagSensorBase):
         # Extended GATT error code
         error_code = self._status_data.get("error_code")
         if error_code:
-            return ERROR_CODES.get(error_code, f"Error {error_code}")
+            return describe_error(error_code)
         # Short GATT status code
         code = self._status_data.get("status_code")
         if code is not None and code != 0:
