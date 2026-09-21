@@ -39,19 +39,11 @@ import voluptuous as vol
 
 from homeassistant.components import bluetooth
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (
-    ATTR_AREA_ID,
-    ATTR_DEVICE_ID,
-    ATTR_ENTITY_ID,
-    ATTR_FLOOR_ID,
-    ATTR_LABEL_ID,
-    CONF_ADDRESS,
-    Platform,
-)
+from homeassistant.const import ATTR_DEVICE_ID, CONF_ADDRESS, Platform
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import device_registry as dr
 import homeassistant.helpers.config_validation as cv
-from homeassistant.helpers.service import async_extract_config_entry_ids
 
 from .const import (
     CONF_HAS_CUTTER,
@@ -71,19 +63,10 @@ _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = [Platform.SENSOR]
 
-# Target keys a service call can carry. Present in a call means the user
-# pointed at something, so the printer is looked up from that.
-_TARGET_KEYS = (
-    ATTR_ENTITY_ID,
-    ATTR_DEVICE_ID,
-    ATTR_AREA_ID,
-    ATTR_FLOOR_ID,
-    ATTR_LABEL_ID,
-)
-
-# Ways of naming a printer, shared by both services
+# Ways of naming a printer, shared by both services. Services cannot carry a
+# device filter on target, so the picker is an ordinary device selector field.
 _PRINTER_FIELDS = {
-    **cv.TARGET_SERVICE_FIELDS,
+    vol.Optional(ATTR_DEVICE_ID): vol.All(cv.ensure_list, [cv.string]),
     vol.Optional("address"): cv.string,
 }
 
@@ -114,15 +97,26 @@ PRINT_IMAGE_SCHEMA = vol.Schema(
 )
 
 
-async def _async_get_printer(
+def _entry_ids_for_devices(hass: HomeAssistant, device_ids: list[str]) -> set[str]:
+    """Map the devices a call names onto the config entries behind them."""
+    registry = dr.async_get(hass)
+    entry_ids: set[str] = set()
+    for device_id in device_ids:
+        device = registry.async_get(device_id)
+        if device is None:
+            raise HomeAssistantError(f"Unknown device {device_id}")
+        entry_ids |= device.config_entries
+    return entry_ids
+
+
+def _get_printer(
     hass: HomeAssistant, call: ServiceCall
 ) -> tuple[LetraTagPrinter, BLEDevice, bool]:
     """Get the printer a service call is aimed at, its device and cutter flag.
 
-    A target names the printer the way the rest of Home Assistant does, by
-    device or area. The address option names it by MAC, for automations that
-    would rather carry a string. With one printer configured, neither is
-    needed.
+    The printer is picked either from the device selector or by address, for
+    automations that would rather carry a string. With one printer
+    configured, neither is needed.
     """
     # Config entry ids never start with an underscore, the internal keys do
     entries = {
@@ -134,10 +128,10 @@ async def _async_get_printer(
         raise HomeAssistantError("No DYMO LetraTag printer configured")
 
     chosen: set[str] = set()
-    if any(key in call.data for key in _TARGET_KEYS):
-        chosen = set(await async_extract_config_entry_ids(call)) & set(entries)
+    if device_ids := call.data.get(ATTR_DEVICE_ID):
+        chosen = _entry_ids_for_devices(hass, device_ids) & set(entries)
         if not chosen:
-            raise HomeAssistantError("The target is not a DYMO LetraTag printer")
+            raise HomeAssistantError("That device is not a DYMO LetraTag printer")
     elif address := str(call.data.get("address", "")).strip():
         wanted = normalize_address(address)
         chosen = {key for key, data in entries.items() if data["address"] == wanted}
@@ -147,7 +141,7 @@ async def _async_get_printer(
         configured = ", ".join(sorted(data["address"] for data in entries.values()))
         raise HomeAssistantError(
             f"Several printers are configured ({configured}), "
-            "target one or set the address option"
+            "pick one with the printer or address option"
         )
     else:
         chosen = set(entries)
@@ -251,7 +245,7 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def handle_print_label(call: ServiceCall) -> None:
         """Handle the print_label service call."""
-        printer, ble_device, has_cutter = await _async_get_printer(hass, call)
+        printer, ble_device, has_cutter = _get_printer(hass, call)
 
         text = call.data["text"]
         if not text.strip():
@@ -310,7 +304,7 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def handle_print_image(call: ServiceCall) -> None:
         """Handle the print_image service call."""
-        printer, ble_device, has_cutter = await _async_get_printer(hass, call)
+        printer, ble_device, has_cutter = _get_printer(hass, call)
 
         image_path = call.data["image_path"]
 

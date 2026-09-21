@@ -193,16 +193,15 @@ Other models or firmware versions may expose additional data.
 ## Services
 
 With a single printer configured the services print on it and nothing extra is
-needed. With several, pick the printer as the service target the same way as
-for any other device, or pass its `address`. A call that names neither fails
+needed. With several, pick one from the **Printer** field, which lists the
+configured printers, or pass its `address`. A call that names neither fails
 rather than picking one at random.
 
 ```yaml
-# Targeting a printer by device
+# Choosing the printer by device
 action: letratag.print_label
-target:
-  device_id: 7d1c8f0f2a4b5c6d7e8f9a0b1c2d3e4f
 data:
+  device_id: 7d1c8f0f2a4b5c6d7e8f9a0b1c2d3e4f
   text: "Hello World"
 ```
 
@@ -213,7 +212,8 @@ Print a text label. Font size is auto-calculated to fill the tape height, or can
 | Parameter | Type | Required | Default | Description |
 |-----------|------|:--------:|---------|-------------|
 | `text` | string | **yes** | | Label text. Use `\n` for multiple lines |
-| `address` | string | no | | Bluetooth address of the printer, an alternative to the target, only needed with more than one configured |
+| `device_id` | string | no | | The printer to use, picked from a dropdown, only needed with more than one configured |
+| `address` | string | no | | Bluetooth address of the printer, an alternative to `device_id` |
 | `copies` | int | no | `1` | Number of copies (1 - 255) |
 | `cut` | bool | no | `true` | Cut after printing (cutter-equipped models only; needs the cutter option) |
 | `font_name` | string | no | | One of the 21 built-in fonts (see below) |
@@ -252,7 +252,8 @@ Print an image file. The image is automatically resized to the tape height and c
 | Parameter | Type | Required | Default | Description |
 |-----------|------|:--------:|---------|-------------|
 | `image_path` | string | **yes** | | Path to image file (PNG, BMP, JPG, etc.) |
-| `address` | string | no | | Bluetooth address of the printer, an alternative to the target, only needed with more than one configured |
+| `device_id` | string | no | | The printer to use, picked from a dropdown, only needed with more than one configured |
+| `address` | string | no | | Bluetooth address of the printer, an alternative to `device_id` |
 | `copies` | int | no | `1` | Number of copies (1 - 255) |
 | `cut` | bool | no | `true` | Cut after printing (cutter-equipped models only; needs the cutter option) |
 
