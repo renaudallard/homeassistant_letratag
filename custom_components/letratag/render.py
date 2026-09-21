@@ -26,7 +26,9 @@
 
 Renders text directly to 1-bit raster data at the printer's native
 resolution (32px height for 12mm tape) using Pillow TrueType rendering.
-No screenshots, no line doubling: direct pixel-perfect output.
+No screenshots and no bitmap scaling: the glyphs are drawn at the size
+they print at. Each finished column is then sent twice, which is what the
+printer's stepper cadence expects, see enlarge().
 
 Raster format:
   - Each "rasterline" is one vertical column of the label.
