@@ -58,7 +58,7 @@ from homeassistant.components.sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_ADDRESS, CONF_NAME, PERCENTAGE
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
@@ -183,6 +183,25 @@ async def async_setup_entry(
         for entity in entities:
             entity.async_write_ha_state()
 
+    def _update_device() -> None:
+        """Copy what the printer reports onto the device registry entry."""
+        registry = dr.async_get(hass)
+        device = registry.async_get_device(identifiers={(DOMAIN, address)})
+        if device is None:
+            return
+        reported = {
+            "model": status_data.get("model"),
+            "sw_version": status_data.get("firmware"),
+            "hw_version": status_data.get("hardware_revision"),
+        }
+        updates = {
+            field: value
+            for field, value in reported.items()
+            if value and value != getattr(device, field)
+        }
+        if updates:
+            registry.async_update_device(device.id, **updates)
+
     @callback
     def _on_advertisement(
         service_info: BluetoothServiceInfoBleak,
@@ -225,6 +244,7 @@ async def async_setup_entry(
             return
         gatt_fetch["done"] = True
         status_data.update(data)
+        _update_device()
         _update_entities()
 
     @callback
@@ -274,12 +294,14 @@ class LetraTagSensorBase(SensorEntity):
         self._status_data = status_data
 
     @property
-    def device_info(self) -> DeviceInfo:
-        return DeviceInfo(
+    def device_info(self) -> dr.DeviceInfo:
+        # The exact model, firmware and hardware revision are filled in from
+        # the Device Information Service the first time the printer is read.
+        return dr.DeviceInfo(
             identifiers={(DOMAIN, self._address)},
             name=self._device_name,
             manufacturer="DYMO",
-            model="LetraTag 200B",
+            model="LetraTag",
         )
 
 

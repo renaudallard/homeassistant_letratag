@@ -167,6 +167,8 @@ The printer auto-shuts down after approximately 5 minutes. Sensors are updated b
 4. **Printer shuts down** - sensors become unavailable
 5. **Next power-on** - cycle repeats
 
+The model, firmware and hardware revision read over GATT are also written to the device entry, so the device page shows what the printer reports rather than a generic name.
+
 ### Confirmed LT200B data
 
 The LT200B (firmware RUTEP20220628, REV-E) exposes:
