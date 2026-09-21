@@ -1,6 +1,9 @@
 print_label:
   name: Print Label
   description: Print a text label on the DYMO LetraTag printer.
+  target:
+    device:
+      integration: letratag
   fields:
     text:
       name: Text
@@ -11,7 +14,7 @@ print_label:
         text:
     address:
       name: Printer
-      description: Bluetooth address of the printer to use. Only needed when more than one printer is configured.
+      description: Bluetooth address of the printer, as an alternative to picking it as a target. Only needed when more than one printer is configured.
       required: false
       example: "AA:BB:CC:DD:EE:FF"
       selector:
@@ -84,6 +87,9 @@ print_label:
 print_image:
   name: Print Image
   description: Print an image on the DYMO LetraTag printer.
+  target:
+    device:
+      integration: letratag
   fields:
     image_path:
       name: Image Path
@@ -94,7 +100,7 @@ print_image:
         text:
     address:
       name: Printer
-      description: Bluetooth address of the printer to use. Only needed when more than one printer is configured.
+      description: Bluetooth address of the printer, as an alternative to picking it as a target. Only needed when more than one printer is configured.
       required: false
       example: "AA:BB:CC:DD:EE:FF"
       selector:

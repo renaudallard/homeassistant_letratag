@@ -39,10 +39,19 @@ import voluptuous as vol
 
 from homeassistant.components import bluetooth
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_ADDRESS, Platform
+from homeassistant.const import (
+    ATTR_AREA_ID,
+    ATTR_DEVICE_ID,
+    ATTR_ENTITY_ID,
+    ATTR_FLOOR_ID,
+    ATTR_LABEL_ID,
+    CONF_ADDRESS,
+    Platform,
+)
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.service import async_extract_config_entry_ids
 
 from .const import (
     CONF_HAS_CUTTER,
@@ -62,10 +71,26 @@ _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = [Platform.SENSOR]
 
+# Target keys a service call can carry. Present in a call means the user
+# pointed at something, so the printer is looked up from that.
+_TARGET_KEYS = (
+    ATTR_ENTITY_ID,
+    ATTR_DEVICE_ID,
+    ATTR_AREA_ID,
+    ATTR_FLOOR_ID,
+    ATTR_LABEL_ID,
+)
+
+# Ways of naming a printer, shared by both services
+_PRINTER_FIELDS = {
+    **cv.TARGET_SERVICE_FIELDS,
+    vol.Optional("address"): cv.string,
+}
+
 PRINT_LABEL_SCHEMA = vol.Schema(
     {
+        **_PRINTER_FIELDS,
         vol.Required("text"): cv.string,
-        vol.Optional("address"): cv.string,
         vol.Optional("copies", default=1): vol.All(
             vol.Coerce(int), vol.Range(min=1, max=255)
         ),
@@ -79,8 +104,8 @@ PRINT_LABEL_SCHEMA = vol.Schema(
 
 PRINT_IMAGE_SCHEMA = vol.Schema(
     {
+        **_PRINTER_FIELDS,
         vol.Required("image_path"): cv.string,
-        vol.Optional("address"): cv.string,
         vol.Optional("copies", default=1): vol.All(
             vol.Coerce(int), vol.Range(min=1, max=255)
         ),
@@ -89,38 +114,48 @@ PRINT_IMAGE_SCHEMA = vol.Schema(
 )
 
 
-def _get_printer(
-    hass: HomeAssistant, address: str | None = None
+async def _async_get_printer(
+    hass: HomeAssistant, call: ServiceCall
 ) -> tuple[LetraTagPrinter, BLEDevice, bool]:
-    """Get a configured printer, its BLE device and cutter flag.
+    """Get the printer a service call is aimed at, its device and cutter flag.
 
-    With a single printer the address can be left out. With several there is
-    no sensible default, so the caller has to say which one.
+    A target names the printer the way the rest of Home Assistant does, by
+    device or area. The address option names it by MAC, for automations that
+    would rather carry a string. With one printer configured, neither is
+    needed.
     """
     # Config entry ids never start with an underscore, the internal keys do
-    entries = [
-        data
+    entries = {
+        key: data
         for key, data in hass.data.get(DOMAIN, {}).items()
         if not key.startswith("_")
-    ]
+    }
     if not entries:
         raise HomeAssistantError("No DYMO LetraTag printer configured")
 
-    if address is None:
-        if len(entries) > 1:
-            configured = ", ".join(sorted(data["address"] for data in entries))
-            raise HomeAssistantError(
-                f"Several printers are configured ({configured}), "
-                "set the address option to choose one"
-            )
-        entry_data = entries[0]
-    else:
+    chosen: set[str] = set()
+    if any(key in call.data for key in _TARGET_KEYS):
+        chosen = set(await async_extract_config_entry_ids(call)) & set(entries)
+        if not chosen:
+            raise HomeAssistantError("The target is not a DYMO LetraTag printer")
+    elif address := str(call.data.get("address", "")).strip():
         wanted = normalize_address(address)
-        matching = [data for data in entries if data["address"] == wanted]
-        if not matching:
+        chosen = {key for key, data in entries.items() if data["address"] == wanted}
+        if not chosen:
             raise HomeAssistantError(f"No DYMO LetraTag printer configured at {wanted}")
-        entry_data = matching[0]
+    elif len(entries) > 1:
+        configured = ", ".join(sorted(data["address"] for data in entries.values()))
+        raise HomeAssistantError(
+            f"Several printers are configured ({configured}), "
+            "target one or set the address option"
+        )
+    else:
+        chosen = set(entries)
 
+    if len(chosen) > 1:
+        raise HomeAssistantError("Print on one printer at a time")
+
+    entry_data = entries[chosen.pop()]
     printer: LetraTagPrinter = entry_data["printer"]
     printer_address: str = entry_data["address"]
     entry: ConfigEntry = entry_data["entry"]
@@ -181,7 +216,7 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def handle_print_label(call: ServiceCall) -> None:
         """Handle the print_label service call."""
-        printer, ble_device, has_cutter = _get_printer(hass, call.data.get("address"))
+        printer, ble_device, has_cutter = await _async_get_printer(hass, call)
 
         text = call.data["text"]
         if not text.strip():
@@ -240,7 +275,7 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def handle_print_image(call: ServiceCall) -> None:
         """Handle the print_image service call."""
-        printer, ble_device, has_cutter = _get_printer(hass, call.data.get("address"))
+        printer, ble_device, has_cutter = await _async_get_printer(hass, call)
 
         image_path = call.data["image_path"]
 
