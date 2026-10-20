@@ -451,7 +451,7 @@ class LetraTagCard extends HTMLElement {
 
         .banner .preview-text {
           writing-mode: vertical-rl;
-          text-orientation: mixed;
+          text-orientation: upright;
           white-space: nowrap;
           font-size: 22px;
           letter-spacing: 2px;
