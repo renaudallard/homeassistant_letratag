@@ -82,6 +82,7 @@ PRINT_LABEL_SCHEMA = vol.Schema(
         vol.Optional("font_name"): vol.In(list(FONT_MAP.keys())),
         vol.Optional("font_path"): cv.string,
         vol.Optional("rotate", default=False): cv.boolean,
+        vol.Optional("mirror", default=False): cv.boolean,
     }
 )
 
@@ -256,6 +257,7 @@ def _register_services(hass: HomeAssistant) -> None:
         font_name = call.data.get("font_name")
         font_size = call.data.get("font_size")
         rotate = call.data.get("rotate", False)
+        mirror = call.data.get("mirror", False)
 
         # Render in executor to avoid blocking the event loop. Finding the
         # font reads the filesystem, so it happens there too.
@@ -280,12 +282,14 @@ def _register_services(hass: HomeAssistant) -> None:
                     label_height=LABEL_HEIGHT,
                     font_path=path,
                     font_size=font_size,
+                    mirror=mirror,
                 )
             return render_text(
                 text,
                 label_height=LABEL_HEIGHT,
                 font_path=path,
                 font_size=font_size,
+                mirror=mirror,
             )
 
         img = await hass.async_add_executor_job(_render)

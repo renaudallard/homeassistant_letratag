@@ -21,9 +21,10 @@
 ## Features
 
 - **BLE auto-discovery** - printers appear automatically in Home Assistant
-- **Lovelace card** - responsive UI with live preview, font/size selectors, and banner mode toggle
+- **Lovelace card** - responsive UI with live preview, font/size selectors, banner mode and mirror toggles
 - **Text label printing** - render and print text directly from service calls
 - **Banner mode** - 90 degree rotated text for vertical/spine labels
+- **Mirror mode** - left/right flipped labels that read correctly through a window
 - **Image label printing** - print any image file, auto-scaled to tape size
 - **Native resolution rendering** - TrueType text rendered at 32px with column doubling for the printer's step rate
 - **Adaptive sensors** - automatically uses whichever data the printer model exposes (advertisement or GATT)
@@ -142,6 +143,7 @@ The resource is automatically removed when the last LetraTag config entry is unl
 - **Configurable defaults** - preset the starting font and size with `default_font` / `default_size`
 - **Visual editor** - configure title, default font and default size from the dashboard card editor
 - **Normal / Banner toggle** - switch between horizontal text and 90 degree banner mode
+- **Mirror** - flip the label left to right, the preview flips with it
 - **Copies** - print multiple copies of a label
 - **Printer picker** - appears only when more than one printer is configured, and scopes both the sensors and the print to the chosen one
 - **Sensor display** - shows the printer's sensors, found through the entity registry so renaming the device does not hide them (unavailable sensors are hidden)
@@ -220,6 +222,7 @@ Print a text label. Font size is auto-calculated to fill the tape height, or can
 | `font_size` | int | no | auto | Font size in pixels (8 - 64) |
 | `font_path` | string | no | | Path to a custom `.ttf` file (used when `font_name` is not set) |
 | `rotate` | bool | no | `false` | Banner mode: rotate text 90 degrees |
+| `mirror` | bool | no | `false` | Flip the label left to right, to be read through a window |
 
 ```yaml
 # Simple label
@@ -243,6 +246,14 @@ service: letratag.print_label
 data:
   text: "OFFICE"
   rotate: true
+```
+
+```yaml
+# Mirrored label, stuck on the inside of a window and read from outside
+service: letratag.print_label
+data:
+  text: "NO JUNK MAIL"
+  mirror: true
 ```
 
 ### `letratag.print_image`
@@ -312,6 +323,10 @@ When `rotate` is `true`, each character is rendered at full tape width and place
 - Cable markers viewed from the side
 - Vertical shelf labels
 - Equipment panel labels
+
+### Mirror Mode
+
+When `mirror` is `true`, the label is flipped left to right. Stick it on one side of a window or any clear surface and it reads normally from the other side. It works in both normal and banner mode: in banner mode the letters keep their top to bottom order and only their shapes are flipped.
 
 ---
 

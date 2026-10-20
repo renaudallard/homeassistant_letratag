@@ -42,6 +42,10 @@ Banner mode (rotate=True):
     laid out sequentially along the tape.
   - The image is rotated so rows become rasterlines.
   - When the tape is turned 90 degrees, text reads normally.
+
+Mirror mode (mirror=True):
+  - The label is flipped left to right before it becomes rasterlines, so
+    it reads normally from the other side of a window it is stuck on.
 """
 
 from __future__ import annotations
@@ -177,6 +181,7 @@ def render_text(
     font_path: str | None = None,
     font_size: int | None = None,
     max_width: int | None = None,
+    mirror: bool = False,
 ) -> Image.Image:
     """Render text to a 1-bit PIL Image at the printer's native resolution.
 
@@ -186,6 +191,7 @@ def render_text(
         font_path: Optional path to a .ttf font file.
         font_size: Optional font size in pixels. Auto-calculated if None.
         max_width: Optional maximum width in pixels.
+        mirror: Flip the label left to right, to be read through glass.
 
     Returns:
         A mode "1" PIL Image (1-bit, black on white).
@@ -229,6 +235,9 @@ def render_text(
 
         draw.text((x, y), line, fill=0, font=font)
 
+    if mirror:
+        img = img.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+
     # Convert to 1-bit with threshold
     return img.point(lambda x: 0 if x < 128 else 255, "1")
 
@@ -239,6 +248,7 @@ def render_text_banner(
     font_path: str | None = None,
     font_size: int | None = None,
     spacing: int = 2,
+    mirror: bool = False,
 ) -> Image.Image:
     """Render text in banner mode (rotated 90 degrees for vertical reading).
 
@@ -253,6 +263,7 @@ def render_text_banner(
         font_path: Optional path to a .ttf font file.
         font_size: Explicit font size. Auto-sized to fill tape width if None.
         spacing: Pixels of gap between characters.
+        mirror: Flip the label left to right, to be read through glass.
 
     Returns:
         A mode "1" PIL Image ready for rasterline conversion.
@@ -316,6 +327,11 @@ def render_text_banner(
 
     # Convert to 1-bit
     img = img.point(lambda x: 0 if x < 128 else 255, "1")
+
+    # Flip the upright layout before rotating, so the letters stay in
+    # reading order from top to bottom and only their shapes are mirrored.
+    if mirror:
+        img = img.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
 
     # Rotate counterclockwise so rows become rasterlines. The first character
     # ends up at the start of the tape, upright when the tape is held with

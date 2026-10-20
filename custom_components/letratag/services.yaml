@@ -88,6 +88,12 @@ print_label:
       default: false
       selector:
         boolean:
+    mirror:
+      name: Mirror
+      description: Flip the label left to right, so it reads normally through a window it is stuck on.
+      default: false
+      selector:
+        boolean:
 
 print_image:
   name: Print Image

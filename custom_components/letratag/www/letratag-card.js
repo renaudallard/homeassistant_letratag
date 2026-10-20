@@ -2,8 +2,8 @@
  * DYMO LetraTag Lovelace Card
  *
  * Custom card for printing labels from the Home Assistant UI.
- * Provides text input, font/size selection, banner mode toggle,
- * and a live label preview.
+ * Provides text input, font/size selection, banner mode and mirror
+ * toggles, and a live label preview.
  */
 
 // Integration domain, used for the service call and to pick out this
@@ -50,6 +50,7 @@ class LetraTagCard extends HTMLElement {
       fontName: "DejaVu Sans Bold",
       fontSize: 0, // 0 = auto
       rotate: false,
+      mirror: false,
       address: null, // which printer, when more than one is configured
       copies: 1,
       printing: false,
@@ -273,6 +274,7 @@ class LetraTagCard extends HTMLElement {
       preview.classList.add("normal");
       preview.classList.remove("banner");
     }
+    preview.classList.toggle("mirrored", this._state.mirror);
   }
 
   _cssFontFamily() {
@@ -314,6 +316,7 @@ class LetraTagCard extends HTMLElement {
       copies: this._state.copies,
       font_name: this._state.fontName,
       rotate: this._state.rotate,
+      mirror: this._state.mirror,
     };
     if (this._state.fontSize > 0) {
       data.font_size = this._state.fontSize;
@@ -455,6 +458,10 @@ class LetraTagCard extends HTMLElement {
           white-space: nowrap;
           font-size: 22px;
           letter-spacing: 2px;
+        }
+
+        .mirrored .preview-text {
+          transform: scaleX(-1);
         }
 
         /* Sensor chips */
@@ -760,6 +767,10 @@ class LetraTagCard extends HTMLElement {
               <label for="copies-input">Copies</label>
               <input type="number" id="copies-input" value="1" min="1" max="255">
             </div>
+            <div class="option">
+              <input type="checkbox" id="mirror-input">
+              <label for="mirror-input">Mirror</label>
+            </div>
             <div style="flex:1"></div>
           </div>
 
@@ -792,6 +803,9 @@ class LetraTagCard extends HTMLElement {
 
     const fontSel = $("font-select");
     if (fontSel) fontSel.value = this._state.fontName;
+
+    const mirror = $("mirror-input");
+    if (mirror) mirror.checked = this._state.mirror;
 
     const slider = $("size-slider");
     const sizeValue = $("size-value");
@@ -868,6 +882,12 @@ class LetraTagCard extends HTMLElement {
     $("copies-input").addEventListener("change", (e) => {
       this._state.copies = Math.max(1, Math.min(255, parseInt(e.target.value, 10) || 1));
       e.target.value = this._state.copies;
+    });
+
+    // Mirror, for labels read through a window
+    $("mirror-input").addEventListener("change", (e) => {
+      this._state.mirror = e.target.checked;
+      this._updatePreview();
     });
 
     // Print button
