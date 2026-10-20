@@ -40,7 +40,7 @@ Raster format:
 Banner mode (rotate=True):
   - Each character is rendered at full tape width, then characters are
     laid out sequentially along the tape.
-  - The image is transposed so rows become rasterlines.
+  - The image is rotated so rows become rasterlines.
   - When the tape is turned 90 degrees, text reads normally.
 """
 
@@ -317,10 +317,10 @@ def render_text_banner(
     # Convert to 1-bit
     img = img.point(lambda x: 0 if x < 128 else 255, "1")
 
-    # Transpose: swap width and height so rows become rasterlines.
-    # This makes the label_height-wide image into a label_height-tall image,
-    # ready for the standard rasterline column reader.
-    return img.transpose(Image.Transpose.TRANSPOSE)
+    # Rotate counterclockwise so rows become rasterlines. The first character
+    # ends up at the start of the tape, upright when the tape is held with
+    # that end on top. A plain transpose would mirror every glyph.
+    return img.transpose(Image.Transpose.ROTATE_90)
 
 
 def image_to_rasterlines(
