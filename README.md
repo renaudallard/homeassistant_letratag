@@ -44,6 +44,8 @@
 | Hardware | DYMO LetraTag 200B |
 | Tape | 12mm cassette |
 
+A label travels to the printer at a few hundred bytes per second, so a long label keeps the Bluetooth link busy for tens of seconds. On a weak link (around -75 dBm with the built-in adapter of a Raspberry Pi 4) the connection can drop partway through a long label, and the print fails with "Lost the Bluetooth connection to the printer". Keep the printer close to the adapter or to a Bluetooth proxy for long labels.
+
 ---
 
 ## Installation

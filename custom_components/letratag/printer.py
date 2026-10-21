@@ -65,6 +65,8 @@ _WRITE_RETRIES = 2
 _REPLY_TIMEOUT_BASE = 10.0
 _REPLY_TIMEOUT_PER_LINE = 0.015
 
+_LINK_LOST = "Lost the Bluetooth connection to the printer (out of range or off)"
+
 
 class PrintError(Exception):
     """Raised when a print operation fails."""
@@ -99,6 +101,10 @@ class LetraTagPrinter:
                 await client.write_gatt_char(self._write_uuid, data, response=True)
                 return
             except (BleakError, EOFError, TimeoutError) as err:
+                # A write cannot succeed on a dropped link, and bleak then
+                # reports errors that say nothing about the cause
+                if not client.is_connected:
+                    raise PrintError(_LINK_LOST) from err
                 last_err = err
                 if attempt < _WRITE_RETRIES:
                     _LOGGER.debug(
@@ -181,6 +187,12 @@ class LetraTagPrinter:
             # replies that arrive once the whole job is written.
             job_sent = asyncio.Event()
 
+            def _on_disconnect(_client: BleakClient) -> None:
+                # Stop waiting for a reply that can no longer arrive. Drops
+                # before that are failed connect attempts or failed writes.
+                if job_sent.is_set():
+                    response_event.set()
+
             def _notification_handler(_sender: Any, data: bytearray) -> None:
                 if not job_sent.is_set():
                     _LOGGER.debug("Ignoring reply sent before the job: %s", data.hex())
@@ -198,6 +210,7 @@ class LetraTagPrinter:
                     BleakClient,
                     ble_device,
                     self.address,
+                    disconnected_callback=_on_disconnect,
                 )
                 _LOGGER.debug("Connected, MTU=%d", client.mtu_size)
 
@@ -213,6 +226,8 @@ class LetraTagPrinter:
 
                 await self._write_stream(client, stream)
                 job_sent.set()
+                if not client.is_connected:
+                    raise PrintError(_LINK_LOST)
                 _LOGGER.debug(
                     "Print data sent, waiting up to %.0fs for the reply", reply_timeout
                 )
@@ -221,6 +236,8 @@ class LetraTagPrinter:
                     await asyncio.wait_for(response_event.wait(), timeout=reply_timeout)
                 except asyncio.TimeoutError:
                     raise PrintError("Printer response timeout")
+                if last_response[0] is None:
+                    raise PrintError(_LINK_LOST)
 
                 await client.stop_notify(self._notify_uuid)
 
