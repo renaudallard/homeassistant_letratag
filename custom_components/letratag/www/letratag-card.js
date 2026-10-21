@@ -798,14 +798,30 @@ class LetraTagCard extends HTMLElement {
     this._updateSensors();
   }
 
+  _sliderMax() {
+    // Last slider position means auto. Banner mode allows larger glyphs.
+    return this._state.rotate ? "65" : "33";
+  }
+
   _syncControls() {
-    // Reflect the runtime state into the freshly rendered controls so
-    // configured defaults show up. The HTML template only carries the
+    // Reflect the runtime state into the freshly rendered controls, so
+    // configured defaults show up and a re-render from the card editor
+    // keeps what was already entered. The HTML template only carries the
     // built-in defaults; everything else is applied here.
     const $ = (id) => this.shadowRoot.getElementById(id);
 
+    const text = $("text-input");
+    if (text) text.value = this._state.text;
+
     const fontSel = $("font-select");
     if (fontSel) fontSel.value = this._state.fontName;
+
+    for (const b of this.shadowRoot.querySelectorAll(".mode-btn")) {
+      b.classList.toggle("active", (b.dataset.mode === "banner") === this._state.rotate);
+    }
+
+    const copies = $("copies-input");
+    if (copies) copies.value = this._state.copies;
 
     const mirror = $("mirror-input");
     if (mirror) mirror.checked = this._state.mirror;
@@ -815,6 +831,7 @@ class LetraTagCard extends HTMLElement {
     const sizeLabel = $("size-label");
     if (!slider || !sizeValue) return;
 
+    slider.max = this._sliderMax();
     if (this._state.fontSize > 0) {
       slider.value = this._state.fontSize;
       sizeValue.textContent = `${this._state.fontSize}px`;
@@ -870,7 +887,7 @@ class LetraTagCard extends HTMLElement {
 
         // Adjust size slider max for banner mode (last position = auto)
         const slider = $("size-slider");
-        slider.max = isRotate ? "65" : "33";
+        slider.max = this._sliderMax();
         slider.value = slider.max;
         this._state.fontSize = 0;
         $("size-value").textContent = "Auto";
