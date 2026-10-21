@@ -359,7 +359,7 @@ All commands are prefixed with `ESC` (`0x1B`):
 | PrintData | `D` | 12+N | Raster data: bpp, alignment, width(4), height(4), pixels(N) |
 | FormFeed | `E` | 2 | Form feed (used by Genie variant after print data) |
 | Status | `A` | 2 | Request printer status |
-| Copies | `#` | 3 | Set number of copies |
+| Copies | `#` | 3 | Set number of copies (ignored by the LetraTag 200B) |
 | Cut | `p` | 3 | Cut tape (`0x30`) or skip (`0x31`), used by Avatar variant |
 | EndJob | `Q` | 2 | End print job |
 
@@ -370,6 +370,8 @@ StartJob -> Copies -> PrintData -> FormFeed|Cut -> Status -> EndJob
 ```
 
 The terminator is FormFeed on the LetraTag 200B (no cutter) or the Cut command on cutter-equipped models.
+
+The LetraTag 200B prints a single label whatever the Copies value, so the integration sends Copies as 1 and repeats the whole job once per copy over the same connection, waiting for each job's reply before sending the next.
 
 ### Communication Framing
 

@@ -161,24 +161,26 @@ class LetraTagPrinter:
         )
         _LOGGER.debug("Print data: %d rasterlines, %d bytes", width, len(print_data))
 
+        # The LetraTag 200B ignores the copies command and prints one label,
+        # so the job goes out once per copy instead.
         stream = build_print_stream(
             print_data=print_data,
             width=width,
-            copies=copies,
             cut=cut,
             label_height_padded=LABEL_HEIGHT_PADDED,
         )
 
-        reply_timeout = _REPLY_TIMEOUT_BASE + _REPLY_TIMEOUT_PER_LINE * width * copies
-        return await self._send_stream(stream, ble_device, reply_timeout)
+        reply_timeout = _REPLY_TIMEOUT_BASE + _REPLY_TIMEOUT_PER_LINE * width
+        return await self._send_stream(stream, ble_device, reply_timeout, copies)
 
     async def _send_stream(
         self,
         stream: ProtocolStream,
         ble_device: BLEDevice,
         reply_timeout: float,
+        copies: int,
     ) -> str:
-        """Connect, send a protocol stream, wait for response, disconnect."""
+        """Connect, send the stream once per copy, wait for each reply."""
         async with self._lock:
             response_event = asyncio.Event()
             last_response: list[int | None] = [None]
@@ -186,6 +188,7 @@ class LetraTagPrinter:
             # enabled, before any job is sent. Like the app, only take the
             # replies that arrive once the whole job is written.
             job_sent = asyncio.Event()
+            result = ""
 
             def _on_disconnect(_client: BleakClient) -> None:
                 # Stop waiting for a reply that can no longer arrive. Drops
@@ -224,20 +227,31 @@ class LetraTagPrinter:
 
                 await client.start_notify(self._notify_uuid, _notification_handler)
 
-                await self._write_stream(client, stream)
-                job_sent.set()
-                if not client.is_connected:
-                    raise PrintError(_LINK_LOST)
-                _LOGGER.debug(
-                    "Print data sent, waiting up to %.0fs for the reply", reply_timeout
-                )
+                for copy in range(1, copies + 1):
+                    job_sent.clear()
+                    response_event.clear()
+                    last_response[0] = None
 
-                try:
-                    await asyncio.wait_for(response_event.wait(), timeout=reply_timeout)
-                except asyncio.TimeoutError:
-                    raise PrintError("Printer response timeout")
-                if last_response[0] is None:
-                    raise PrintError(_LINK_LOST)
+                    await self._write_stream(client, stream)
+                    job_sent.set()
+                    if not client.is_connected:
+                        raise PrintError(_LINK_LOST)
+                    _LOGGER.debug(
+                        "Copy %d/%d sent, waiting up to %.0fs for the reply",
+                        copy,
+                        copies,
+                        reply_timeout,
+                    )
+
+                    try:
+                        await asyncio.wait_for(
+                            response_event.wait(), timeout=reply_timeout
+                        )
+                    except asyncio.TimeoutError:
+                        raise PrintError("Printer response timeout")
+                    if last_response[0] is None:
+                        raise PrintError(_LINK_LOST)
+                    result = _reply_result(last_response[0])
 
                 await client.stop_notify(self._notify_uuid)
 
@@ -253,17 +267,18 @@ class LetraTagPrinter:
                 if client is not None and client.is_connected:
                     await client.disconnect()
 
-        code = last_response[0]
-        if code is None:
-            raise PrintError("No response from printer")
+        _LOGGER.info("Print complete: %s", result)
+        return result
 
-        msg = RESPONSE_MESSAGES.get(code, f"Unknown response ({code})")
 
-        # The Genie firmware reports an accepted job with code 1 (Printing).
-        # The LetraTag Connect app treats that code as the terminal success
-        # state and disconnects, so it is a success here as well.
-        if code in (RESPONSE_SUCCESS, RESPONSE_PRINTING, RESPONSE_SUCCESS_LOW_BATTERY):
-            _LOGGER.info("Print complete: %s", msg)
-            return msg
+def _reply_result(code: int) -> str:
+    """Name a job reply, raising PrintError when the job failed."""
+    msg = RESPONSE_MESSAGES.get(code, f"Unknown response ({code})")
 
-        raise PrintError(msg)
+    # The Genie firmware reports an accepted job with code 1 (Printing).
+    # The LetraTag Connect app treats that code as the terminal success
+    # state and disconnects, so it is a success here as well.
+    if code in (RESPONSE_SUCCESS, RESPONSE_PRINTING, RESPONSE_SUCCESS_LOW_BATTERY):
+        return msg
+
+    raise PrintError(msg)
