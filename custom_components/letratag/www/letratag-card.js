@@ -305,7 +305,8 @@ class LetraTagCard extends HTMLElement {
   }
 
   async _print() {
-    if (!this._hass || !this._state.text.trim()) return;
+    // Ctrl+Enter reaches here even while the button is disabled
+    if (!this._hass || this._state.printing || !this._state.text.trim()) return;
 
     this._state.printing = true;
     this._state.message = "";
