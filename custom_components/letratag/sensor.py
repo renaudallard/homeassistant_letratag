@@ -298,13 +298,14 @@ class LetraTagSensorBase(SensorEntity):
 
     @property
     def device_info(self) -> dr.DeviceInfo:
-        # The exact model, firmware and hardware revision are filled in from
-        # the Device Information Service the first time the printer is read.
+        # The model, firmware and hardware revision come from the Device
+        # Information Service the first time the printer is read. A model set
+        # here would be written over the one read from the printer on every
+        # start, so none is given.
         return dr.DeviceInfo(
             identifiers={(DOMAIN, self._address)},
             name=self._device_name,
             manufacturer="DYMO",
-            model="LetraTag",
         )
 
 
