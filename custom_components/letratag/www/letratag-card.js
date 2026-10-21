@@ -442,7 +442,9 @@ class LetraTagCard extends HTMLElement {
         }
 
         .preview-text {
-          white-space: nowrap;
+          /* Keep the line breaks, each line is centered like on the label */
+          white-space: pre;
+          text-align: center;
           overflow: hidden;
           text-overflow: ellipsis;
           font-weight: 700;
