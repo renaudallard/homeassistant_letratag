@@ -258,7 +258,7 @@ data:
 
 ### `letratag.print_image`
 
-Print an image file. The image is automatically resized to the tape height and converted to 1-bit monochrome. Image path must be under the Home Assistant configuration directory.
+Print an image file. The image is automatically resized to the tape height and converted to 1-bit monochrome. Transparent areas print as blank tape. Image path must be under the Home Assistant configuration directory.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|:--------:|---------|-------------|

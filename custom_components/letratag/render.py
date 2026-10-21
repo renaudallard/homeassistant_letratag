@@ -351,6 +351,12 @@ def image_to_rasterlines(
     Each rasterline is a list of ints (0 or 1) of length label_height,
     where 1 = black (print) and 0 = white (no print).
     """
+    # Transparent pixels are mostly stored as black, so they would print as
+    # solid ink. Lay the image on white tape before anything else.
+    if img.mode in ("RGBA", "LA", "PA") or "transparency" in img.info:
+        rgba = img.convert("RGBA")
+        img = Image.alpha_composite(Image.new("RGBA", rgba.size, "white"), rgba)
+
     # Resize height to match label if needed, preserving aspect ratio
     if img.height != label_height:
         ratio = label_height / img.height
