@@ -425,6 +425,8 @@ Available on some models. Not broadcast by LT200B REV-E.
 | 8 | Bay open |
 | 9 | Cutter jam |
 
+The printer sends its idle reply (`1B 52 00`) as soon as notifications are enabled, before any job is written, so only replies that arrive after the job count. The job reply comes once the label has printed: about 4 seconds for a short label on the LetraTag 200B, plus roughly 11 ms per rasterline, so a print call stays connected until then. Without a cassette the LetraTag 200B still answers 0.
+
 ---
 
 ## Support

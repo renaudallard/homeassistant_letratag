@@ -59,6 +59,12 @@ _LOGGER = logging.getLogger(__name__)
 # Maximum retries for transient BLE write failures
 _WRITE_RETRIES = 2
 
+# The job reply only comes once the label is printed. A LetraTag 200B took
+# 4.3s for the 150 rasterline minimum and 25s for 2000 rasterlines, about
+# 11ms a rasterline, so allow a fixed delay plus some margin per rasterline.
+_REPLY_TIMEOUT_BASE = 10.0
+_REPLY_TIMEOUT_PER_LINE = 0.015
+
 
 class PrintError(Exception):
     """Raised when a print operation fails."""
@@ -157,19 +163,28 @@ class LetraTagPrinter:
             label_height_padded=LABEL_HEIGHT_PADDED,
         )
 
-        return await self._send_stream(stream, ble_device)
+        reply_timeout = _REPLY_TIMEOUT_BASE + _REPLY_TIMEOUT_PER_LINE * width * copies
+        return await self._send_stream(stream, ble_device, reply_timeout)
 
     async def _send_stream(
         self,
         stream: ProtocolStream,
         ble_device: BLEDevice,
+        reply_timeout: float,
     ) -> str:
         """Connect, send a protocol stream, wait for response, disconnect."""
         async with self._lock:
             response_event = asyncio.Event()
             last_response: list[int | None] = [None]
+            # The printer pushes its idle reply as soon as notifications are
+            # enabled, before any job is sent. Like the app, only take the
+            # replies that arrive once the whole job is written.
+            job_sent = asyncio.Event()
 
             def _notification_handler(_sender: Any, data: bytearray) -> None:
+                if not job_sent.is_set():
+                    _LOGGER.debug("Ignoring reply sent before the job: %s", data.hex())
+                    return
                 code = parse_notification(data)
                 last_response[0] = code
                 response_event.set()
@@ -197,10 +212,13 @@ class LetraTagPrinter:
                 await client.start_notify(self._notify_uuid, _notification_handler)
 
                 await self._write_stream(client, stream)
-                _LOGGER.debug("Print data sent, waiting for response")
+                job_sent.set()
+                _LOGGER.debug(
+                    "Print data sent, waiting up to %.0fs for the reply", reply_timeout
+                )
 
                 try:
-                    await asyncio.wait_for(response_event.wait(), timeout=30.0)
+                    await asyncio.wait_for(response_event.wait(), timeout=reply_timeout)
                 except asyncio.TimeoutError:
                     raise PrintError("Printer response timeout")
 
