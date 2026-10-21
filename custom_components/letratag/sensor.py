@@ -227,7 +227,10 @@ async def async_setup_entry(
         ):
             gatt_fetch["running"] = True
             _LOGGER.debug("Printer %s is online, fetching GATT data", address)
-            hass.async_create_task(_fetch_gatt())
+            # Tied to the entry, so an unload cancels a read still in flight
+            entry.async_create_background_task(
+                hass, _fetch_gatt(), f"{DOMAIN} GATT read {address}"
+            )
 
     async def _fetch_gatt() -> None:
         # Hold off the next attempt up front, so a failure of any kind cannot
