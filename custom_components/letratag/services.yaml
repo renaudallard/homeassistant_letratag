@@ -4,11 +4,12 @@ print_label:
   fields:
     text:
       name: Text
-      description: Text to print. Use \n for multi-line labels.
+      description: Text to print. Each line of the text becomes a line on the label.
       required: true
       example: "Hello World"
       selector:
         text:
+          multiline: true
     device_id:
       name: Printer
       description: The printer to print on. Only needed when more than one printer is configured.

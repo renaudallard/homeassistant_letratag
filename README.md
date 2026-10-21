@@ -213,7 +213,7 @@ Print a text label. Font size is auto-calculated to fill the tape height, or can
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|:--------:|---------|-------------|
-| `text` | string | **yes** | | Label text. Use `\n` for multiple lines |
+| `text` | string | **yes** | | Label text, one label line per text line (in YAML, `\n` inside double quotes) |
 | `device_id` | string | no | | The printer to use, picked from a dropdown, only needed with more than one configured |
 | `address` | string | no | | Bluetooth address of the printer, an alternative to `device_id` |
 | `copies` | int | no | `1` | Number of copies (1 - 255) |
