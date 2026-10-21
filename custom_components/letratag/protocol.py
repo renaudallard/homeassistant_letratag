@@ -252,7 +252,8 @@ def parse_manufacturer_data(data: bytes | bytearray) -> dict:
 def parse_status_info(data: bytes | bytearray) -> dict:
     """Parse extended status info from a status read response.
 
-    The response starts at offset 2 of the raw BLE data.
+    The response starts at offset 2 of the raw BLE data, and the 32 byte
+    minimum covers every field read below.
     """
     if len(data) < 32:
         return {}
@@ -268,10 +269,10 @@ def parse_status_info(data: bytes | bytearray) -> dict:
     sku = bytes(sku_bytes).decode("ascii", errors="replace").strip()
     error_code = int.from_bytes(buf[22:26], "little")
     label_count = int.from_bytes(buf[26:28], "little")
-    eps_charging = buf[28] if len(buf) > 28 else 0
+    eps_charging = buf[28]
     # Extended status reports the battery as a 0-100 percentage, unlike the
     # advertisement which packs a 0-3 level. Keep it under a distinct key.
-    battery_level_raw = buf[29] if len(buf) > 29 else 0
+    battery_level_raw = buf[29]
 
     return {
         "status_length": status_length,
