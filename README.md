@@ -120,7 +120,7 @@ A custom card is included for printing labels directly from the UI.
 
 ### Adding the card
 
-The card JS is automatically registered as a Lovelace resource when the integration loads (served securely via `StaticPathConfig` and auto-added to the resource collection). No manual resource configuration needed.
+The card JS is automatically registered as a Lovelace resource when the integration loads (served securely via `StaticPathConfig` and auto-added to the resource collection). No manual resource configuration needed. The resource URL carries the integration version, so browsers load the new card after an upgrade instead of a cached copy.
 
 Just add a card to your dashboard. All options can be set from the visual
 editor (the gear icon) or in YAML:

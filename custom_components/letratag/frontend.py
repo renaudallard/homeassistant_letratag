@@ -26,7 +26,9 @@
 
 Securely registers the card JS as a static path via StaticPathConfig and
 auto-registers it as a Lovelace resource so users do not need to manually
-add the resource URL. Cleans up on last entry unload.
+add the resource URL. The resource URL carries the integration version, so
+browsers fetch the new card after an upgrade instead of the cached one.
+Cleans up on last entry unload.
 
 Based on the pattern from github.com/renaudallard/bmw-cardata-ha.
 """
@@ -39,6 +41,7 @@ from typing import Any
 
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import CoreState, HomeAssistant
+from homeassistant.loader import async_get_integration
 
 from .const import DOMAIN
 
@@ -50,6 +53,18 @@ _STARTED_UNSUB_KEY = "_frontend_started_unsub"
 
 _STATIC_URL = f"/{DOMAIN}/letratag-card.js"
 _STATIC_PATH = Path(__file__).parent / "www" / "letratag-card.js"
+
+
+async def _async_resource_url(hass: HomeAssistant) -> str:
+    """Card URL tagged with the integration version.
+
+    The card is served with a month long cache lifetime, so the URL has to
+    change with every release or browsers keep running the old card.
+    """
+    integration = await async_get_integration(hass, DOMAIN)
+    if integration.version is None:
+        return _STATIC_URL
+    return f"{_STATIC_URL}?v={integration.version}"
 
 
 async def _async_register_lovelace_resource(hass: HomeAssistant) -> str | None:
@@ -72,15 +87,19 @@ async def _async_register_lovelace_resource(hass: HomeAssistant) -> str | None:
             await resources.async_load()
             resources.loaded = True
 
-        # Check if already registered
+        url = await _async_resource_url(hass)
+
+        # Reuse an existing entry, pointing it at this version if it was
+        # registered by an older one
         for item in resources.async_items():
-            if item.get("url") == _STATIC_URL:
-                return item["id"]
+            if str(item.get("url", "")).partition("?")[0] != _STATIC_URL:
+                continue
+            if item["url"] != url:
+                await resources.async_update_item(item["id"], {"url": url})
+            return item["id"]
 
         # Register as a JS module
-        item = await resources.async_create_item(
-            {"res_type": "module", "url": _STATIC_URL}
-        )
+        item = await resources.async_create_item({"res_type": "module", "url": url})
         return item["id"]
     except Exception as err:  # noqa: BLE001
         _LOGGER.warning("Unable to register Lovelace resource: %s", err)
