@@ -50,6 +50,15 @@ A label travels to the printer at a few hundred bytes per second, so a long labe
 
 ## Installation
 
+### HACS
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=renaudallard&repository=homeassistant_letratag&category=integration)
+
+1. Search for **DYMO LetraTag** in HACS, or click the button above, and click **Download**
+2. Restart Home Assistant
+
+If the search does not find it, add `https://github.com/renaudallard/homeassistant_letratag` as a custom repository of category **Integration** (HACS three dots menu > **Custom repositories**) and search again.
+
 ### Manual
 
 Copy `custom_components/letratag/` into your Home Assistant configuration directory:
@@ -80,14 +89,6 @@ Copy `custom_components/letratag/` into your Home Assistant configuration direct
 ```
 
 Restart Home Assistant.
-
-### HACS
-
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=renaudallard&repository=homeassistant_letratag&category=integration)
-
-1. Click the button above (or open **HACS > Integrations**, three dots menu > **Custom repositories**, and enter `https://github.com/renaudallard/homeassistant_letratag` with category **Integration**)
-2. Find **DYMO LetraTag** in the list and click **Download**
-3. Restart Home Assistant
 
 ---
 
