@@ -39,6 +39,19 @@ jobs:
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Build the zip
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          mkdir -p dist
+          # The files of the integration at the root of the zip: hacs.json
+          # names it, and HACS and the Marketplace extract it into
+          # custom_components/letratag/
+          cd custom_components/letratag
+          zip -qr ../../dist/letratag.zip . \
+            -x '*.pyc' '__pycache__/*' '*/__pycache__/*'
+          cd ../..
+          unzip -l dist/letratag.zip
+
       - name: Create release
         if: steps.check.outputs.exists == 'false'
         env:
@@ -46,4 +59,5 @@ jobs:
         run: |
           gh release create "${{ steps.version.outputs.tag }}" \
             --title "${{ steps.version.outputs.tag }}" \
-            --generate-notes
+            --generate-notes \
+            dist/letratag.zip
